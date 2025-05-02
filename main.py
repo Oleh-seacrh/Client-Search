@@ -1,3 +1,4 @@
+
 import streamlit as st
 import requests
 import openai
@@ -12,17 +13,14 @@ CSE_ID = st.secrets["CSE_ID"]
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# Очищення до головної сторінки
 def simplify_url(link):
     parsed = urlparse(link)
     return f"{parsed.scheme}://{parsed.netloc}"
 
-# Витягування першої пошти зі snippet
 def extract_email(text):
     match = re.search(r"[\w\.-]+@[\w\.-]+", text)
     return match.group(0) if match else "—"
 
-# GPT-аналіз з додатковими питаннями
 def analyze_with_gpt(title, snippet, link):
     prompt = f"""
     Ти допомагаєш визначити, чи сайт може бути потенційним клієнтом для медичної продукції (Agfa, Fujifilm, Carestream).
@@ -50,16 +48,31 @@ st.set_page_config(page_title="Пошук клієнтів GPT", layout="wide")
 st.title("🔍 Пошук потенційних клієнтів через Google + GPT")
 
 query = st.text_input("Введи ключові слова:")
+
+col1, col2 = st.columns(2)
+with col1:
+    num_results = st.slider("Кількість результатів", min_value=10, max_value=100, value=10, step=10)
+with col2:
+    start_index = st.number_input("Починати з результату №", min_value=1, max_value=91, value=1, step=10)
+
 start = st.button("Пошук")
 
 if start and query:
     with st.spinner("Пошук та GPT-аналіз..."):
-        results = requests.get(f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={CSE_ID}&q={query}").json().get("items", [])
+        params = {
+            "key": GOOGLE_API_KEY,
+            "cx": CSE_ID,
+            "q": query,
+            "num": num_results,
+            "start": start_index
+        }
+        results = requests.get("https://www.googleapis.com/customsearch/v1", params=params).json().get("items", [])
         all_data = []
 
         for item in results:
             title = item["title"]
-            link = simplify_url(item["link"])
+            raw_link = item["link"]
+            link = simplify_url(raw_link)
             snippet = item.get("snippet", "")
             email = extract_email(snippet)
 
@@ -86,13 +99,14 @@ if start and query:
         else:
             df = pd.DataFrame(all_data)
             st.success("Готово!")
-            for row in df.itertuples(index=False):
-                with st.expander(f"🔗 {row.Назва}"):
-                    st.markdown(f"**Домашня сторінка:** [{row.Посилання}]({row.Посилання})")
-                    st.markdown(f"**Пошта:** {row.Пошта}")
-                    st.markdown(f"**Тип:** {row.Тип}")
-                    st.markdown(f"**GPT-висновок:** {row._5}")
-                    st.markdown(f"**Опис:** {row.Опис}")
+
+            for i in range(len(df)):
+                with st.expander(f"🔗 {df.iloc[i]['Назва']}"):
+                    st.markdown(f"**Домашня сторінка:** [{df.iloc[i]['Домашня сторінка']}]({df.iloc[i]['Домашня сторінка']})")
+                    st.markdown(f"**Пошта:** {df.iloc[i]['Пошта']}")
+                    st.markdown(f"**Тип:** {df.iloc[i]['Тип']}")
+                    st.markdown(f"**GPT-висновок:** {df.iloc[i]['GPT-висновок']}")
+                    st.markdown(f"**Опис:** {df.iloc[i]['Опис']}")
                     st.markdown("---")
 
             st.download_button("⬇️ Завантажити CSV", data=df.to_csv(index=False, encoding="utf-8-sig"), file_name="gpt_google_results.csv", mime="text/csv")
