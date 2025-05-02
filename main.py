@@ -52,7 +52,7 @@ query = st.text_input("Введи ключові слова:")
 
 col1, col2 = st.columns(2)
 with col1:
-    num_results = st.slider("Кількість результатів", min_value=10, max_value=100, value=10, step=10)
+    num_results = st.slider("Кількість результатів", min_value=1, max_value=100, value=10, step=1)
 with col2:
     start_index = st.number_input("Починати з результату №", min_value=1, max_value=91, value=1, step=10)
 
