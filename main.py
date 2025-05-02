@@ -88,7 +88,7 @@ if start and query:
             st.success("Готово!")
             for row in df.itertuples(index=False):
                 with st.expander(f"🔗 {row.Назва}"):
-                    st.markdown(f"**Домашня сторінка:** [{row._asdict()['Домашня сторінка']}]({row._asdict()['Домашня сторінка']})")
+                    st.markdown(f"**Домашня сторінка:** [{row.Посилання}]({row.Посилання})")
                     st.markdown(f"**Пошта:** {row.Пошта}")
                     st.markdown(f"**Тип:** {row.Тип}")
                     st.markdown(f"**GPT-висновок:** {row._5}")
