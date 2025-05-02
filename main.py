@@ -65,11 +65,10 @@ with col1:
 with col2:
     start_index = st.number_input("Починати з результату №", min_value=1, max_value=91, value=1, step=10)
 
-filter_yes_only = st.checkbox("Показати лише 'Клієнт: Так'")
 start = st.button("Пошук")
 
 if start and query:
-    tab_name = query.strip().lower()[:30].replace("/", "_")
+    tab_name = query.strip().lower().replace("/", "_")[:30]
     with st.spinner("Пошук та GPT-аналіз..."):
         params = {
             "key": st.secrets["GOOGLE_API_KEY"],
@@ -79,18 +78,17 @@ if start and query:
             "start": start_index
         }
         results = requests.get("https://www.googleapis.com/customsearch/v1", params=params).json().get("items", [])
-        all_data = []
 
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
         try:
-            sheet = sh.worksheet(tab_name)
+            sh.del_worksheet(sh.worksheet(tab_name))
         except:
-            sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="4")
-            sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Відгук GPT"])
+            pass  # не існує — не видаляємо
 
-        existing_links = sheet.col_values(2)
+        sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="4")
+        sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Відгук GPT"])
 
         for item in results:
             title = item["title"]
@@ -99,15 +97,12 @@ if start and query:
             snippet = item.get("snippet", "")
             email = extract_email(title + " " + snippet)
 
-            if link in existing_links:
-                continue
-
             try:
                 gpt_response = analyze_with_gpt(title, snippet, link)
             except Exception as e:
                 gpt_response = f"Помилка: {e}"
 
-            if not filter_yes_only or gpt_response.strip().startswith("Так"):
+            if gpt_response.strip().startswith("Так"):
                 sheet.append_row([title, link, email, gpt_response], value_input_option="USER_ENTERED")
 
-        st.success(f"Дані додано до вкладки '{tab_name}' у Google Таблиці!")
+        st.success(f"Дані додано у вкладку '{tab_name}', тільки для 'Клієнт: Так'")
