@@ -6,13 +6,26 @@ import pandas as pd
 import re
 from urllib.parse import urlparse
 import os
+import json
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
-# 🔐 Секрети зі Streamlit Cloud
+# Секрети
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 CSE_ID = st.secrets["CSE_ID"]
+GSHEET_JSON = st.secrets["GSHEET_SERVICE_ACCOUNT"]
+GSHEET_SPREADSHEET_ID = st.secrets["GSHEET_SPREADSHEET_ID"]
 
+# GPT
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
+
+# Google Sheets авторизація
+def get_gsheet_client():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds_dict = json.loads(GSHEET_JSON)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    return gspread.authorize(creds)
 
 def simplify_url(link):
     parsed = urlparse(link)
@@ -45,6 +58,7 @@ def analyze_with_gpt(title, snippet, link):
     )
     return response.choices[0].message.content
 
+# Streamlit UI
 st.set_page_config(page_title="Пошук клієнтів GPT", layout="wide")
 st.title("🔍 Пошук потенційних клієнтів через Google + GPT")
 
@@ -60,16 +74,6 @@ filter_yes_only = st.checkbox("Показати лише 'Клієнт: Так'"
 start = st.button("Пошук")
 
 if start and query:
-    cache_filename = f"results_{query.replace(' ', '_').lower()}.csv"
-
-    # Якщо файл існує — завантажити його
-    if os.path.exists(cache_filename):
-        existing_df = pd.read_csv(cache_filename, sep=";", encoding="utf-8-sig")
-        existing_urls = set(existing_df["Домашня сторінка"])
-    else:
-        existing_df = pd.DataFrame()
-        existing_urls = set()
-
     with st.spinner("Пошук та GPT-аналіз..."):
         params = {
             "key": GOOGLE_API_KEY,
@@ -81,6 +85,10 @@ if start and query:
         results = requests.get("https://www.googleapis.com/customsearch/v1", params=params).json().get("items", [])
         all_data = []
 
+        gc = get_gsheet_client()
+        sheet = gc.open_by_key(GSHEET_SPREADSHEET_ID).sheet1
+        existing_links = sheet.col_values(2)
+
         for item in results:
             title = item["title"]
             raw_link = item["link"]
@@ -88,46 +96,15 @@ if start and query:
             snippet = item.get("snippet", "")
             email = extract_email(title + " " + snippet)
 
-            if link in existing_urls:
-                continue  # Пропускаємо вже оброблені
+            if link in existing_links:
+                continue
 
             try:
                 gpt_response = analyze_with_gpt(title, snippet, link)
-                client_result, org_type = gpt_response.split("Тип:", 1)
-                client_result = client_result.strip().replace("Клієнт:", "").strip()
-                org_type = org_type.strip()
             except Exception as e:
-                client_result = f"Помилка: {e}"
-                org_type = "Невизначено"
+                gpt_response = f"Помилка: {e}"
 
-            all_data.append({
-                "Назва": title,
-                "Домашня сторінка": link,
-                "Пошта": email,
-                "Тип": org_type,
-                "GPT-висновок": client_result,
-                "Опис": snippet
-            })
+            if not filter_yes_only or gpt_response.strip().startswith("Так"):
+                sheet.append_row([title, link, email, gpt_response], value_input_option="USER_ENTERED")
 
-        new_df = pd.DataFrame(all_data)
-        combined_df = pd.concat([existing_df, new_df], ignore_index=True).drop_duplicates(subset=["Домашня сторінка"])
-
-        if filter_yes_only:
-            combined_df = combined_df[combined_df["GPT-висновок"].str.startswith("Так")]
-
-        if combined_df.empty:
-            st.info("Немає нових результатів або нічого не підходить за фільтром.")
-        else:
-            st.success("Готово!")
-            for i in range(len(combined_df)):
-                with st.expander(f"🔗 {combined_df.iloc[i]['Назва']}"):
-                    st.markdown(f"**Домашня сторінка:** [{combined_df.iloc[i]['Домашня сторінка']}]({combined_df.iloc[i]['Домашня сторінка']})")
-                    st.markdown(f"**Пошта:** {combined_df.iloc[i]['Пошта']}")
-                    st.markdown(f"**Тип:** {combined_df.iloc[i]['Тип']}")
-                    st.markdown(f"**GPT-висновок:** {combined_df.iloc[i]['GPT-висновок']}")
-                    st.markdown(f"**Опис:** {combined_df.iloc[i]['Опис']}")
-                    st.markdown("---")
-
-            csv_data = combined_df.to_csv(index=False, sep=";", encoding="utf-8-sig")
-            st.download_button("⬇️ Завантажити CSV", data=csv_data, file_name=cache_filename, mime="text/csv")
-            combined_df.to_csv(cache_filename, index=False, sep=";", encoding="utf-8-sig")
+        st.success("Дані додано до Google Таблиці!")
