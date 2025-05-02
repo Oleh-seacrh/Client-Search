@@ -1,9 +1,10 @@
+
 import streamlit as st
 import requests
 import openai
 import pandas as pd
 
-# 🔐 Читання секретів із Streamlit Cloud
+# 🔐 Секрети зі Streamlit Cloud
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 CSE_ID = st.secrets["CSE_ID"]
@@ -14,11 +15,6 @@ def google_search(query):
     url = f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={CSE_ID}&q={query}"
     response = requests.get(url)
     return response.json().get("items", [])
-
-def is_blocked(title, snippet, link):
-    BLOCKED_KEYWORDS = ["agfa", "carestream", "fujifilm", "official", "manufacturer", "corporate", "global"]
-    combined = f"{title} {snippet} {link}".lower()
-    return any(word in combined for word in BLOCKED_KEYWORDS)
 
 def analyze_with_gpt(title, snippet, link):
     prompt = f"""
@@ -52,9 +48,6 @@ if start and query:
             link = item["link"]
             snippet = item.get("snippet", "")
 
-            if is_blocked(title, snippet, link):
-                continue
-
             try:
                 gpt_response = analyze_with_gpt(title, snippet, link)
             except Exception as e:
@@ -68,7 +61,7 @@ if start and query:
             })
 
         if not all_data:
-            st.warning("Немає результатів після фільтрації.")
+            st.warning("Немає результатів.")
         else:
             df = pd.DataFrame(all_data)
             st.success("Готово!")
