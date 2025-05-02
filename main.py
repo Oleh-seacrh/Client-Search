@@ -12,15 +12,11 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # Секрети
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-CSE_ID = st.secrets["CSE_ID"]
 GSHEET_JSON = st.secrets["GSHEET_SERVICE_ACCOUNT"]
-GSHEET_SPREADSHEET_ID = st.secrets["GSHEET_SPREADSHEET_ID"]
+GSHEET_SPREADSHEET_ID = "1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0"
 
-# GPT
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# Google Sheets авторизація
 def get_gsheet_client():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds_dict = json.loads(GSHEET_JSON)
@@ -58,7 +54,6 @@ def analyze_with_gpt(title, snippet, link):
     )
     return response.choices[0].message.content
 
-# Streamlit UI
 st.set_page_config(page_title="Пошук клієнтів GPT", layout="wide")
 st.title("🔍 Пошук потенційних клієнтів через Google + GPT")
 
@@ -74,10 +69,11 @@ filter_yes_only = st.checkbox("Показати лише 'Клієнт: Так'"
 start = st.button("Пошук")
 
 if start and query:
+    tab_name = query.strip().lower()[:30].replace("/", "_")
     with st.spinner("Пошук та GPT-аналіз..."):
         params = {
-            "key": GOOGLE_API_KEY,
-            "cx": CSE_ID,
+            "key": st.secrets["GOOGLE_API_KEY"],
+            "cx": st.secrets["CSE_ID"],
             "q": query,
             "num": num_results,
             "start": start_index
@@ -86,7 +82,14 @@ if start and query:
         all_data = []
 
         gc = get_gsheet_client()
-        sheet = gc.open_by_key(GSHEET_SPREADSHEET_ID).sheet1
+        sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
+
+        try:
+            sheet = sh.worksheet(tab_name)
+        except:
+            sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="4")
+            sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Відгук GPT"])
+
         existing_links = sheet.col_values(2)
 
         for item in results:
@@ -107,4 +110,4 @@ if start and query:
             if not filter_yes_only or gpt_response.strip().startswith("Так"):
                 sheet.append_row([title, link, email, gpt_response], value_input_option="USER_ENTERED")
 
-        st.success("Дані додано до Google Таблиці!")
+        st.success(f"Дані додано до вкладки '{tab_name}' у Google Таблиці!")
