@@ -18,8 +18,8 @@ def simplify_url(link):
     return f"{parsed.scheme}://{parsed.netloc}"
 
 def extract_email(text):
-    match = re.search(r"[\w\.-]+@[\w\.-]+", text)
-    return match.group(0) if match else "—"
+    emails = re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", text)
+    return emails[0] if emails else "—"
 
 def analyze_with_gpt(title, snippet, link):
     prompt = f"""
@@ -55,6 +55,8 @@ with col1:
 with col2:
     start_index = st.number_input("Починати з результату №", min_value=1, max_value=91, value=1, step=10)
 
+filter_yes_only = st.checkbox("Показати лише 'Клієнт: Так'")
+
 start = st.button("Пошук")
 
 if start and query:
@@ -74,7 +76,7 @@ if start and query:
             raw_link = item["link"]
             link = simplify_url(raw_link)
             snippet = item.get("snippet", "")
-            email = extract_email(snippet)
+            email = extract_email(title + " " + snippet)
 
             try:
                 gpt_response = analyze_with_gpt(title, snippet, link)
@@ -98,15 +100,20 @@ if start and query:
             st.warning("Немає результатів.")
         else:
             df = pd.DataFrame(all_data)
-            st.success("Готово!")
+            if filter_yes_only:
+                df = df[df["GPT-висновок"].str.startswith("Так")]
 
-            for i in range(len(df)):
-                with st.expander(f"🔗 {df.iloc[i]['Назва']}"):
-                    st.markdown(f"**Домашня сторінка:** [{df.iloc[i]['Домашня сторінка']}]({df.iloc[i]['Домашня сторінка']})")
-                    st.markdown(f"**Пошта:** {df.iloc[i]['Пошта']}")
-                    st.markdown(f"**Тип:** {df.iloc[i]['Тип']}")
-                    st.markdown(f"**GPT-висновок:** {df.iloc[i]['GPT-висновок']}")
-                    st.markdown(f"**Опис:** {df.iloc[i]['Опис']}")
-                    st.markdown("---")
+            if df.empty:
+                st.info("Немає результатів, які відповідають фільтру 'Клієнт: Так'")
+            else:
+                st.success("Готово!")
+                for i in range(len(df)):
+                    with st.expander(f"🔗 {df.iloc[i]['Назва']}"):
+                        st.markdown(f"**Домашня сторінка:** [{df.iloc[i]['Домашня сторінка']}]({df.iloc[i]['Домашня сторінка']})")
+                        st.markdown(f"**Пошта:** {df.iloc[i]['Пошта']}")
+                        st.markdown(f"**Тип:** {df.iloc[i]['Тип']}")
+                        st.markdown(f"**GPT-висновок:** {df.iloc[i]['GPT-висновок']}")
+                        st.markdown(f"**Опис:** {df.iloc[i]['Опис']}")
+                        st.markdown("---")
 
-            st.download_button("⬇️ Завантажити CSV", data=df.to_csv(index=False, encoding="utf-8-sig"), file_name="gpt_google_results.csv", mime="text/csv")
+                st.download_button("⬇️ Завантажити CSV", data=df.to_csv(index=False, encoding="utf-8-sig"), file_name="gpt_google_results.csv", mime="text/csv")
