@@ -107,10 +107,8 @@ if start and query:
 
             st.markdown(f"### 🔎 [{title}]({link})")
             st.markdown(f"📧 **Email:** {email}")
-            st.markdown(f"🧠 **GPT:**
-```
-{gpt_response}
-```")
+            st.markdown("🧠 **GPT:**")
+            st.code(gpt_response, language="markdown")
 
             if "Клієнт: Так" in gpt_response:
                 sheet.append_row([title, link, email, gpt_response], value_input_option="USER_ENTERED")
