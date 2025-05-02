@@ -1,4 +1,6 @@
 streamlit
 openai
-requests
 pandas
+requests
+gspread
+oauth2client
