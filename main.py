@@ -1,17 +1,17 @@
-
 import streamlit as st
 import requests
 import openai
 import pandas as pd
 
-API_KEY = "ВСТАВ_СЮДИ_СВІЙ_GOOGLE_API_KEY"
-CSE_ID = "ВСТАВ_СЮДИ_СВІЙ_CSE_ID"
-OPENAI_API_KEY = "ВСТАВ_СЮДИ_СВІЙ_OPENAI_KEY"
+# 🔐 Читання секретів із Streamlit Cloud
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+CSE_ID = st.secrets["CSE_ID"]
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 def google_search(query):
-    url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={CSE_ID}&q={query}"
+    url = f"https://www.googleapis.com/customsearch/v1?key={GOOGLE_API_KEY}&cx={CSE_ID}&q={query}"
     response = requests.get(url)
     return response.json().get("items", [])
 
