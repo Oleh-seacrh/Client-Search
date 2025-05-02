@@ -105,8 +105,15 @@ if start and query:
             except Exception as e:
                 gpt_response = f"Помилка: {e}"
 
-            if gpt_response.strip().startswith("Так"):
+            st.markdown(f"### 🔎 [{title}]({link})")
+            st.markdown(f"📧 **Email:** {email}")
+            st.markdown(f"🧠 **GPT:**
+```
+{gpt_response}
+```")
+
+            if "Клієнт: Так" in gpt_response:
                 sheet.append_row([title, link, email, gpt_response], value_input_option="USER_ENTERED")
                 existing_links.add(link)
 
-        st.success(f"✅ Дані додано до вкладки '{tab_name}', без перезапису")
+        st.success(f"✅ Дані збережено до вкладки '{tab_name}' (якщо GPT дав відповідь 'Клієнт: Так')")
