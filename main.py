@@ -83,17 +83,20 @@ if start and query:
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
         try:
-            sh.del_worksheet(sh.worksheet(tab_name))
+            sheet = sh.worksheet(tab_name)
         except:
-            pass  # не існує — не видаляємо
+            sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="4")
+            sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Відгук GPT"])
 
-        sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="4")
-        sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Відгук GPT"])
+        existing_links = set(sheet.col_values(2))
 
         for item in results:
             title = item["title"]
             raw_link = item["link"]
             link = simplify_url(raw_link)
+            if link in existing_links:
+                continue
+
             snippet = item.get("snippet", "")
             email = extract_email(title + " " + snippet)
 
@@ -104,5 +107,6 @@ if start and query:
 
             if gpt_response.strip().startswith("Так"):
                 sheet.append_row([title, link, email, gpt_response], value_input_option="USER_ENTERED")
+                existing_links.add(link)
 
-        st.success(f"Дані додано у вкладку '{tab_name}', тільки для 'Клієнт: Так'")
+        st.success(f"✅ Дані додано до вкладки '{tab_name}', без перезапису")
