@@ -5,6 +5,7 @@ import openai
 import pandas as pd
 import re
 from urllib.parse import urlparse
+import os
 
 # 🔐 Секрети зі Streamlit Cloud
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
@@ -56,10 +57,19 @@ with col2:
     start_index = st.number_input("Починати з результату №", min_value=1, max_value=91, value=1, step=10)
 
 filter_yes_only = st.checkbox("Показати лише 'Клієнт: Так'")
-
 start = st.button("Пошук")
 
 if start and query:
+    cache_filename = f"results_{query.replace(' ', '_').lower()}.csv"
+
+    # Якщо файл існує — завантажити його
+    if os.path.exists(cache_filename):
+        existing_df = pd.read_csv(cache_filename, sep=";", encoding="utf-8-sig")
+        existing_urls = set(existing_df["Домашня сторінка"])
+    else:
+        existing_df = pd.DataFrame()
+        existing_urls = set()
+
     with st.spinner("Пошук та GPT-аналіз..."):
         params = {
             "key": GOOGLE_API_KEY,
@@ -77,6 +87,9 @@ if start and query:
             link = simplify_url(raw_link)
             snippet = item.get("snippet", "")
             email = extract_email(title + " " + snippet)
+
+            if link in existing_urls:
+                continue  # Пропускаємо вже оброблені
 
             try:
                 gpt_response = analyze_with_gpt(title, snippet, link)
@@ -96,24 +109,25 @@ if start and query:
                 "Опис": snippet
             })
 
-        if not all_data:
-            st.warning("Немає результатів.")
+        new_df = pd.DataFrame(all_data)
+        combined_df = pd.concat([existing_df, new_df], ignore_index=True).drop_duplicates(subset=["Домашня сторінка"])
+
+        if filter_yes_only:
+            combined_df = combined_df[combined_df["GPT-висновок"].str.startswith("Так")]
+
+        if combined_df.empty:
+            st.info("Немає нових результатів або нічого не підходить за фільтром.")
         else:
-            df = pd.DataFrame(all_data)
-            if filter_yes_only:
-                df = df[df["GPT-висновок"].str.startswith("Так")]
+            st.success("Готово!")
+            for i in range(len(combined_df)):
+                with st.expander(f"🔗 {combined_df.iloc[i]['Назва']}"):
+                    st.markdown(f"**Домашня сторінка:** [{combined_df.iloc[i]['Домашня сторінка']}]({combined_df.iloc[i]['Домашня сторінка']})")
+                    st.markdown(f"**Пошта:** {combined_df.iloc[i]['Пошта']}")
+                    st.markdown(f"**Тип:** {combined_df.iloc[i]['Тип']}")
+                    st.markdown(f"**GPT-висновок:** {combined_df.iloc[i]['GPT-висновок']}")
+                    st.markdown(f"**Опис:** {combined_df.iloc[i]['Опис']}")
+                    st.markdown("---")
 
-            if df.empty:
-                st.info("Немає результатів, які відповідають фільтру 'Клієнт: Так'")
-            else:
-                st.success("Готово!")
-                for i in range(len(df)):
-                    with st.expander(f"🔗 {df.iloc[i]['Назва']}"):
-                        st.markdown(f"**Домашня сторінка:** [{df.iloc[i]['Домашня сторінка']}]({df.iloc[i]['Домашня сторінка']})")
-                        st.markdown(f"**Пошта:** {df.iloc[i]['Пошта']}")
-                        st.markdown(f"**Тип:** {df.iloc[i]['Тип']}")
-                        st.markdown(f"**GPT-висновок:** {df.iloc[i]['GPT-висновок']}")
-                        st.markdown(f"**Опис:** {df.iloc[i]['Опис']}")
-                        st.markdown("---")
-
-                st.download_button("⬇️ Завантажити CSV", data=df.to_csv(index=False, encoding="utf-8-sig"), file_name="gpt_google_results.csv", mime="text/csv")
+            csv_data = combined_df.to_csv(index=False, sep=";", encoding="utf-8-sig")
+            st.download_button("⬇️ Завантажити CSV", data=csv_data, file_name=cache_filename, mime="text/csv")
+            combined_df.to_csv(cache_filename, index=False, sep=";", encoding="utf-8-sig")
