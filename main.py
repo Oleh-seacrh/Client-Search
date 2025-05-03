@@ -71,7 +71,7 @@ def analyze_with_gpt(context, site_text, url):
 
    try:
     completion = openai.ChatCompletion.create(
-        model="gpt-4o",
+        model="gpt-4",
         messages=[
             {"role": "system", "content": "Ти аналізуєш контент сайту і визначаєш потенційних клієнтів."},
             {"role": "user", "content": prompt + "\n\nКонтент сайту:\n" + site_text[:4000]}
