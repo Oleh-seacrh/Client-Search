@@ -169,8 +169,7 @@ if start and query:
 
                 name = name_match.group(1).strip() if name_match else title
                 org_type = type_match.group(1).strip() if type_match else "-"
-                email = email_match.group(1).strip() if email_match else "-"
-                country = country_match.group(1).strip() if country_match else "-"
+                email, country = extract_email_and_country(gpt_response, link)
                 client_status = f"Клієнт: {client_match.group(1)}" if client_match else "Невідомо"
 
                 if email.lower().startswith("інформація") or "не вказано" in email.lower():
