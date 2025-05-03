@@ -144,7 +144,7 @@ if start and query:
         type_match = re.search(r"Тип: (.+)", gpt_response)
         email_match = re.search(r"Пошта: ([^\n()]+)", gpt_response)
         country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
-        client_match = re.search(r"Клієнт: (Так|Ні)", gpt_response)
+        client_match = re.search(r"Клієнт:\s*(Так|Ні)\b", gpt_response)
 
         name = name_match.group(1).strip() if name_match else title
         org_type = type_match.group(1).strip() if type_match else "-"
