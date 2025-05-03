@@ -126,7 +126,13 @@ if start and query:
                 email = email_match.group(1).strip() if email_match else "—"
                 country = country_match.group(1).strip() if country_match else "—"
 
-                sheet.append_row([name, link, email, org_type, country, gpt_response], value_input_option="USER_ENTERED")
+                summary_match = re.search(r"Клієнт: (Так|Ні).*", gpt_response)
+                summary = summary_match.group(0).strip() if summary_match else "Невідомо"
+                if email.lower().startswith("інформація"):
+                    email = ""
+                if country.lower().startswith("інформація"):
+                    country = ""
+                sheet.append_row([name, link, email, org_type, country, summary], value_input_option="USER_ENTERED")
                 existing_links.add(link)
 
         st.success(f"✅ Дані збережено до вкладки '{tab_name}' з країною, типом і фільтром по 'Клієнт: Так'")
