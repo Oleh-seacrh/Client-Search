@@ -138,8 +138,7 @@ if start and query:
             st.markdown("🧠 **GPT:**")
             st.code(gpt_response, language="markdown")
 
-            if "Клієнт: Так" in gpt_response:
-    # Витягуємо основні дані
+    if "Клієнт: Так" in gpt_response:
     name_match = re.search(r"Назва компанії: (.+)", gpt_response)
     type_match = re.search(r"Тип: (.+)", gpt_response)
     client_match = re.search(r"Клієнт: (Так|Ні)", gpt_response)
@@ -148,16 +147,13 @@ if start and query:
     org_type = type_match.group(1).strip() if type_match else "-"
     client_status = f"Клієнт: {client_match.group(1)}" if client_match else "-"
 
-    # Email + країна
     email, country = extract_email_and_country(gpt_response)
 
-    # Очищення даних
     if email.lower().startswith("інформація"):
         email = "-"
     if country.lower().startswith("інформація"):
         country = "-"
 
-    # Записуємо в Google Sheet
     sheet.append_row([name, link, email, org_type, country, client_status], value_input_option="USER_ENTERED")
     existing_links.add(link)
 
