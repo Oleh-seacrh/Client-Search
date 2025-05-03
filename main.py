@@ -74,7 +74,8 @@ def analyze_with_gpt(context, site_text, url):
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "Ти аналізуєш контент сайту і визначаєш потенційних клієнтів."},
-                {"role": "user", "content": prompt + "
+                {"role": "user", "content": prompt + "\n"},
+
 
 " + site_text[:4000]}
             ]
