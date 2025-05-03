@@ -27,10 +27,6 @@ def simplify_url(link):
     parsed = urlparse(link)
     return f"{parsed.scheme}://{parsed.netloc}"
 
-def extract_email(text):
-    emails = re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", text)
-    return emails[0] if emails else "—"
-
 def analyze_with_gpt(title, snippet, link):
     prompt = f"""
     Ви є асистентом з продажів у компанії, яка займається постачанням рентген-плівки, касет, принтерів та медичних витратних матеріалів.
@@ -45,14 +41,16 @@ def analyze_with_gpt(title, snippet, link):
 
     Проаналізуйте і дайте відповідь:
 
-    1️⃣ Визнач справжню назву компанії (якщо її видно з контексту)
+    1️⃣ Назва компанії (якщо видно з опису або URL)
     2️⃣ Чи може це бути потенційний клієнт для нашої продукції? (Так / Ні + коротке пояснення)
     3️⃣ Який тип організації це ймовірно (дистриб’ютор / лікарня / медичний центр / виробник / інше)?
+    4️⃣ Якщо бачите email або можете припустити його (наприклад, info@домен), наведіть його
 
     Формат відповіді:
     Назва компанії: ...
     Клієнт: Так/Ні — ...
     Тип: ...
+    Пошта: ...
     """
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -104,7 +102,6 @@ if start and query:
                 continue
 
             snippet = item.get("snippet", "")
-            email = extract_email(title + " " + snippet)
 
             try:
                 gpt_response = analyze_with_gpt(title, snippet, link)
@@ -112,18 +109,19 @@ if start and query:
                 gpt_response = f"Помилка: {e}"
 
             st.markdown(f"### 🔎 [{title}]({link})")
-            st.markdown(f"📧 **Email:** {email}")
             st.markdown("🧠 **GPT:**")
             st.code(gpt_response, language="markdown")
 
             if "Клієнт: Так" in gpt_response:
                 name_match = re.search(r"Назва компанії: (.+)", gpt_response)
                 type_match = re.search(r"Тип: (.+)", gpt_response)
+                email_match = re.search(r"Пошта: (.+)", gpt_response)
 
                 name = name_match.group(1).strip() if name_match else title
                 org_type = type_match.group(1).strip() if type_match else "—"
+                email = email_match.group(1).strip() if email_match else "—"
 
                 sheet.append_row([name, link, email, org_type, gpt_response], value_input_option="USER_ENTERED")
                 existing_links.add(link)
 
-        st.success(f"✅ Дані збережено до вкладки '{tab_name}' (фільтр: Клієнт: Так)")
+        st.success(f"✅ Дані збережено до вкладки '{tab_name}' (з email, типом і фільтром по 'Клієнт: Так')")
