@@ -86,7 +86,7 @@ def analyze_with_gpt(title, snippet, link):
     return response.choices[0].message.content
 
 st.set_page_config(page_title="Пошук клієнтів GPT", layout="wide")
-st.title("🔍 Пошук потенційних клієнтів через Google + GPT")
+st.title("🔍 Пошук")
 
 query = st.text_input("Введи ключові слова:")
 col1, col2 = st.columns(2)
