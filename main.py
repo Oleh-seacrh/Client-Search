@@ -1,175 +1,129 @@
 
-# Оновлено: нормалізація email, країни та відгуку GPT
 import streamlit as st
-import requests
 import openai
+import requests
+from bs4 import BeautifulSoup
 import re
-from urllib.parse import urlparse
 import os
-import json
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-GSHEET_JSON = st.secrets["GSHEET_SERVICE_ACCOUNT"]
-GSHEET_SPREADSHEET_ID = "1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0"
+# Налаштування OpenAI
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
+# Налаштування Google Sheets
+GSHEET_SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+GSHEET_CREDS = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=GSHEET_SCOPE)
+GSHEET_SPREADSHEET_ID = st.secrets["GSHEET_SPREADSHEET_ID"]
+gc = gspread.authorize(GSHEET_CREDS)
+sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
-def extract_email_and_country(gpt_response):
-    import re
-    email_match = re.search(r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", gpt_response)
-    email = email_match.group(1).strip() if email_match else "-"
-    country_match = re.search(r"Країна: ([^\n,]+)", gpt_response)
-    country = country_match.group(1).strip() if country_match else "-"
-    if "не вдалося визначити" in country.lower() or "важко" in country.lower():
-        country = "-"
-    if "не вказано" in email.lower() or "інформацію" in email.lower():
-        email = "-"
-    return email, country
+# Створити вкладку за ключовим словом, якщо її не існує
+def get_or_create_worksheet(keyword):
+    try:
+        worksheet = sh.worksheet(keyword)
+    except gspread.exceptions.WorksheetNotFound:
+        worksheet = sh.add_worksheet(title=keyword, rows="1000", cols="20")
+        worksheet.append_row(["Назва компанії", "Сайт", "Пошта", "Тип", "Країна", "Відгук GPT"])
+    return worksheet
 
+# Отримати домен сайту
+def extract_homepage(url):
+    match = re.search(r"(https?://[^/]+)", url)
+    return match.group(1) if match else url
 
-def get_gsheet_client():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds_dict = json.loads(GSHEET_JSON)
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    return gspread.authorize(creds)
+# Отримати текст із сайту
+def fetch_text_from_url(url):
+    try:
+        response = requests.get(url, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        for script in soup(["script", "style"]):
+            script.decompose()
+        return soup.get_text(separator=' ', strip=True)
+    except Exception as e:
+        return ""
 
-def simplify_url(link):
-    parsed = urlparse(link)
-    return f"{parsed.scheme}://{parsed.netloc}"
+# Отримати email зі сторінки
+def extract_email_from_url(url):
+    try:
+        response = requests.get(url, timeout=10)
+        emails = set(re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", response.text))
+        return list(emails)[0] if emails else "-"
+    except:
+        return "-"
 
-def analyze_with_gpt(title, snippet, link):
+# Згенерувати висновок GPT
+def analyze_with_gpt(context, site_text, url):
     prompt = f"""
-    Ви є асистентом з продажів у компанії, яка займається постачанням рентген-плівки, касет, принтерів та медичних витратних матеріалів.
+Вивчи сайт компанії за адресою: {url}.
+Контекст: ми займаємось продажем рентген-плівки, більше на сайті: {context}
+1. Чи може компанія бути нашим потенційним клієнтом? (тільки якщо вона не є виробником плівки, а також не є офіційним представництвом виробника, наприклад Fujifilm India).
+2. Визнач хто ця компанія (тип: дистриб'ютор, реселер, клініка, виробник і т.д.).
+3. Визнач країну (з контенту або контактів).
+4. Визнач пошту (якщо є).
 
-    Вебсайт компанії: https://www.xraymedem.com
+Формат відповіді:
+Клієнт: Так/Ні — коротке обґрунтування.
+Тип: ...
+Пошта: ...
+Країна: ...
+"""
 
-    Ваше завдання — оцінити, чи сайт, знайдений через Google, є потенційним клієнтом для нашої продукції.
+    try:
+        completion = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Ти аналізуєш контент сайту і визначаєш потенційних клієнтів."},
+                {"role": "user", "content": prompt + "
 
-    🔹 Назва (Google): {title}
-    🔹 Опис: {snippet}
-    🔹 Лінк: {link}
+" + site_text[:4000]}
+            ]
+        )
+        return completion.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Помилка: {str(e)}"
 
-    ❗ ВАЖЛИВО:
-    Всі, хто згадує або продає рентген-плівку, касети, медичні принтери — є потенційними клієнтами.
-    Це включає конкурентів, реселерів, постачальників і дистриб’юторів.
-    ❌ Не враховуйте лише офіційні представництва виробника (наприклад, "Fujifilm India", якщо це підрозділ бренду).
-    ✅ Навіть офіційні дистриб’ютори — це потенційні клієнти.
-
-    Також визнач країну компанії. Для цього враховуй:
-    – домен сайту (.cn, .in, .ua тощо)
-    – наявну адресу в описі (наприклад: Shenzhen, China)
-    – міжнародний телефонний код (+86 → Китай)
-    – згадки у назві компанії або структурі сторінки (наприклад, "India Pvt Ltd")
-
-    Формат відповіді:
-    Назва компанії: ...
-    Клієнт: Так/Ні — ...
-    Тип: ...
-    Пошта: ...
-    Країна: ...
-    """
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
-
-st.set_page_config(page_title="Пошук клієнтів GPT", layout="wide")
+# Побудова інтерфейсу
 st.title("🔍 Пошук потенційних клієнтів через Google + GPT")
+keyword = st.text_input("Введи ключові слова:")
+limit = st.slider("Кількість результатів", 1, 50, 10)
+start = st.number_input("Починати з результату №", 1, 100, 1)
+search_button = st.button("Пошук")
 
-query = st.text_input("Введи ключові слова:")
-col1, col2 = st.columns(2)
-with col1:
-    num_results = st.slider("Кількість результатів", min_value=1, max_value=100, value=10, step=1)
-with col2:
-    start_index = st.number_input("Починати з результату №", min_value=1, max_value=91, value=1, step=10)
+if search_button and keyword:
+    from googlesearch import search
+    worksheet = get_or_create_worksheet(keyword)
+    homepage_set = set([row[1] for row in worksheet.get_all_values()[1:]])
 
-start = st.button("Пошук")
+    for url in search(keyword, num_results=limit, start=start - 1):
+        homepage = extract_homepage(url)
+        if homepage in homepage_set:
+            continue
 
-if start and query:
-    tab_name = query.strip().lower().replace("/", "_")[:30]
-    with st.spinner("Пошук та GPT-аналіз..."):
-        params = {
-            "key": st.secrets["GOOGLE_API_KEY"],
-            "cx": st.secrets["CSE_ID"],
-            "q": query,
-            "num": num_results,
-            "start": start_index
-        }
-        results = requests.get("https://www.googleapis.com/customsearch/v1", params=params).json().get("items", [])
+        site_text = fetch_text_from_url(url)
+        email = extract_email_from_url(url)
+        gpt_response = analyze_with_gpt("https://www.xraymedem.com/", site_text, url)
 
-        gc = get_gsheet_client()
-        sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
+        # Витягуємо ключові частини
+        client_match = re.search(r"Клієнт: (Так|Ні)(.*?)\n", gpt_response)
+        is_client = client_match.group(1) if client_match else "Ні"
 
-        try:
-            sheet = sh.worksheet(tab_name)
-        except:
-            sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="6")
-            sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Тип", "Країна", "Відгук GPT"])
+        if is_client == "Так":
+            company_name = homepage.replace("https://", "").replace("http://", "").split("/")[0].replace("www.", "").split(".")[0].capitalize()
+            company_type_match = re.search(r"Тип: (.*?)\n", gpt_response)
+            company_type = company_type_match.group(1).strip() if company_type_match else "-"
 
-        existing_links = set(sheet.col_values(2))
+            email_match = re.search(r"Пошта: ([^\n]+)", gpt_response)
+            email = email_match.group(1).strip() if email_match else "-"
+            if "не вказано" in email.lower() or "інформацію" in email.lower():
+                email = "-"
 
-        for item in results:
-            title = item["title"]
-            raw_link = item["link"]
-            link = simplify_url(raw_link)
-            if link in existing_links:
-                continue
+            country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
+            country = country_match.group(1).strip() if country_match else "-"
+            if "не вдалося" in country.lower() or "важко" in country.lower():
+                country = "-"
 
-            snippet = item.get("snippet", "")
+            worksheet.append_row([company_name, homepage, email, company_type, country, gpt_response])
+            st.success(f"✅ Додано: {company_name}")
 
-            try:
-                gpt_response = analyze_with_gpt(title, snippet, link)
-            except Exception as e:
-                gpt_response = f"Помилка: {e}"
-
-            st.markdown(f"### 🔎 [{title}]({link})")
-            st.markdown("🧠 **GPT:**")
-            st.code(gpt_response, language="markdown")
-
-            if "Клієнт: Так" in gpt_response:
-                name_match = re.search(r"Назва компанії: (.+)", gpt_response)
-                type_match = re.search(r"Тип: (.+)", gpt_response)
-                email_match = re.search(r"Пошта: ([^\n()]+)", gpt_response)
-                country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
-
-                name = name_match.group(1).strip() if name_match else title
-                org_type = type_match.group(1).strip() if type_match else "—"
-                email = email_match.group(1).strip() if email_match else "—"
-                country = country_match.group(1).strip() if country_match else "—"
-
-                # Витягуємо лише рішення GPT
-                summary_match = re.search(r"Клієнт: (Так|Ні).*", gpt_response)
-                summary = summary_match.group(0).strip() if summary_match else "Невідомо"
-
-                # Витягуємо країну
-                country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
-                country = country_match.group(1).strip() if country_match else "-"
-                if "не вдалося визначити" in country.lower() or "важко" in country.lower():
-                    country = "-"
-
-                # Витягуємо email
-                email_match = re.search(r"Пошта: ([^\n()]+)", gpt_response)
-                email = email_match.group(1).strip() if email_match else "-"
-                if "не вказано" in email.lower() or "інформацію" in email.lower():
-                    email = "-"
-
-                email, country = extract_email_and_country(gpt_response)
-                name_match = re.search(r"Назва компанії: (.+)", gpt_response)
-                type_match = re.search(r"Тип: (.+)", gpt_response)
-                client_match = re.search(r"Клієнт: (Так|Ні)", gpt_response)
-                name = name_match.group(1).strip() if name_match else title
-                org_type = type_match.group(1).strip() if type_match else "-"
-                client_status = f"Клієнт: {client_match.group(1)}" if client_match else "-"
-                sheet.append_row([name, link, email, org_type, country, client_status], value_input_option="USER_ENTERED")
-                summary = summary_match.group(0).strip() if summary_match else "Невідомо"
-                if email.lower().startswith("інформація"):
-                    email = ""
-                if country.lower().startswith("інформація"):
-                    country = ""
-                sheet.append_row([name, link, email, org_type, country, summary], value_input_option="USER_ENTERED")
-                existing_links.add(link)
-
-        st.success(f"✅ Дані збережено до вкладки '{tab_name}' з країною, типом і фільтром по 'Клієнт: Так'")
+    st.success("Готово!")
