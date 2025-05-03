@@ -121,25 +121,23 @@ if start and query:
         existing_links = set(sheet.col_values(2))
 
         for item in results:
-            title = item["title"]
-            raw_link = item["link"]
-            link = simplify_url(raw_link)
-            if link in existing_links:
-                continue
+    title = item["title"]
+    raw_link = item["link"]
+    link = simplify_url(raw_link)
+    if link in existing_links:
+        continue
 
-            snippet = item.get("snippet", "")
+    snippet = item.get("snippet", "")
+    try:
+        gpt_response = analyze_with_gpt(title, snippet, link)
+    except Exception as e:
+        gpt_response = f"Помилка: {e}"
 
-            try:
-                gpt_response = analyze_with_gpt(title, snippet, link)
-            except Exception as e:
-                gpt_response = f"Помилка: {e}"
-
-            st.markdown(f"### 🔎 [{title}]({link})")
-            st.markdown("🧠 **GPT:**")
-            st.code(gpt_response, language="markdown")
+    st.markdown(f"### 🔎 [{title}]({link})")
+    st.markdown("🧠 **GPT:**")
+    st.code(gpt_response, language="markdown")
 
     if "Клієнт: Так" in gpt_response:
-        # Витягуємо дані з відповіді GPT
         name_match = re.search(r"Назва компанії: (.+)", gpt_response)
         type_match = re.search(r"Тип: (.+)", gpt_response)
         email_match = re.search(r"Пошта: ([^\n()]+)", gpt_response)
@@ -152,16 +150,15 @@ if start and query:
         country = country_match.group(1).strip() if country_match else "-"
         client_status = f"Клієнт: {client_match.group(1)}" if client_match else "Невідомо"
 
-        # Прибираємо зайві пояснення від GPT
         if email.lower().startswith("інформація") or "не вказано" in email.lower():
             email = "-"
         if country.lower().startswith("інформація") or "не вдалося" in country.lower() or "важко" in country.lower():
             country = "-"
 
-        # Уникнення дублювання
         if link not in existing_links:
             sheet.append_row([name, link, email, org_type, country, client_status], value_input_option="USER_ENTERED")
             existing_links.add(link)
+
 
 
 
