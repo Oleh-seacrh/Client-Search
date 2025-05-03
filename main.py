@@ -160,6 +160,8 @@ if start and query:
 
             try:
                 gpt_response = analyze_with_gpt(title, snippet, link)
+                # Зберігаємо пошукову історію у вкладку "Пошуки"
+                search_log_sheet.append_row([query, title, link, gpt_response, start_index], value_input_option="USER_ENTERED")
             except Exception as e:
                 gpt_response = f"Помилка: {e}"
 
