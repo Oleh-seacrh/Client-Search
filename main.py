@@ -131,7 +131,7 @@ if start and query:
                 summary_match = re.search(r"Клієнт: (Так|Ні).*", gpt_response)
                 summary = summary_match.group(0).strip() if summary_match else "Невідомо"
 
-                # Витягуємо країну
+              
                 country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
 ]+)", gpt_response)
                 country = country_match.group(1).strip() if country_match else "-"
