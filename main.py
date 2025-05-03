@@ -14,16 +14,41 @@ GSHEET_SPREADSHEET_ID = "1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0"
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-def extract_email_and_country(gpt_response):
-    email_match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", gpt_response)
-    email = email_match.group(0).strip() if email_match else "-"
+from bs4 import BeautifulSoup
 
+def extract_email_and_country(gpt_response, base_url):
+    def find_contact_url(base_url):
+        try:
+            resp = requests.get(base_url, timeout=7)
+            soup = BeautifulSoup(resp.text, "html.parser")
+            for a in soup.find_all("a", href=True):
+                href = a["href"].lower()
+                if any(word in href for word in ["contact", "contacts", "контакт", "контакти", "contact-us"]):
+                    if href.startswith("http"):
+                        return href
+                    elif href.startswith("/"):
+                        return base_url.rstrip("/") + href
+            return base_url
+        except:
+            return base_url
+
+    # Знаходимо контактну сторінку
+    contact_url = find_contact_url(base_url)
+
+    # Парсимо email зі сторінки контактів
+    try:
+        resp = requests.get(contact_url, timeout=7)
+        emails = re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", resp.text)
+        email = emails[0] if emails else "-"
+    except:
+        email = "-"
+
+    # Країна — з GPT
     country_match = re.search(r"Країна: ([^\n\r]+)", gpt_response)
     country = country_match.group(1).strip() if country_match else "-"
 
     if any(x in country.lower() for x in ["не вдалося", "важко", "невідомо", "невизначено"]):
         country = "-"
-
     if any(x in email.lower() for x in ["не вказано", "інформацію", "email не знайдено"]):
         email = "-"
 
