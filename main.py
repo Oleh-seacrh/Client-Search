@@ -139,46 +139,26 @@ if start and query:
             st.code(gpt_response, language="markdown")
 
             if "Клієнт: Так" in gpt_response:
-                name_match = re.search(r"Назва компанії: (.+)", gpt_response)
-                type_match = re.search(r"Тип: (.+)", gpt_response)
-                email_match = re.search(r"Пошта: ([^\n()]+)", gpt_response)
-                country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
+    # Витягуємо основні дані
+    name_match = re.search(r"Назва компанії: (.+)", gpt_response)
+    type_match = re.search(r"Тип: (.+)", gpt_response)
+    client_match = re.search(r"Клієнт: (Так|Ні)", gpt_response)
 
-                name = name_match.group(1).strip() if name_match else title
-                org_type = type_match.group(1).strip() if type_match else "—"
-                email = email_match.group(1).strip() if email_match else "—"
-                country = country_match.group(1).strip() if country_match else "—"
+    name = name_match.group(1).strip() if name_match else title
+    org_type = type_match.group(1).strip() if type_match else "-"
+    client_status = f"Клієнт: {client_match.group(1)}" if client_match else "-"
 
-                # Витягуємо лише рішення GPT
-                summary_match = re.search(r"Клієнт: (Так|Ні).*", gpt_response)
-                summary = summary_match.group(0).strip() if summary_match else "Невідомо"
+    # Email + країна
+    email, country = extract_email_and_country(gpt_response)
 
-                # Витягуємо країну
-                country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
-                country = country_match.group(1).strip() if country_match else "-"
-                if "не вдалося визначити" in country.lower() or "важко" in country.lower():
-                    country = "-"
+    # Очищення даних
+    if email.lower().startswith("інформація"):
+        email = "-"
+    if country.lower().startswith("інформація"):
+        country = "-"
 
-                # Витягуємо email
-                email_match = re.search(r"Пошта: ([^\n()]+)", gpt_response)
-                email = email_match.group(1).strip() if email_match else "-"
-                if "не вказано" in email.lower() or "інформацію" in email.lower():
-                    email = "-"
-
-                email, country = extract_email_and_country(gpt_response)
-                name_match = re.search(r"Назва компанії: (.+)", gpt_response)
-                type_match = re.search(r"Тип: (.+)", gpt_response)
-                client_match = re.search(r"Клієнт: (Так|Ні)", gpt_response)
-                name = name_match.group(1).strip() if name_match else title
-                org_type = type_match.group(1).strip() if type_match else "-"
-                client_status = f"Клієнт: {client_match.group(1)}" if client_match else "-"
-                sheet.append_row([name, link, email, org_type, country, client_status], value_input_option="USER_ENTERED")
-                summary = summary_match.group(0).strip() if summary_match else "Невідомо"
-                if email.lower().startswith("інформація"):
-                    email = ""
-                if country.lower().startswith("інформація"):
-                    country = ""
-                sheet.append_row([name, link, email, org_type, country, summary], value_input_option="USER_ENTERED")
-                existing_links.add(link)
+    # Записуємо в Google Sheet
+    sheet.append_row([name, link, email, org_type, country, client_status], value_input_option="USER_ENTERED")
+    existing_links.add(link)
 
         st.success(f"✅ Дані збережено до вкладки '{tab_name}' з країною, типом і фільтром по 'Клієнт: Так'")
