@@ -120,7 +120,7 @@ if start and query:
                 name_match = re.search(r"Назва компанії: (.+)", gpt_response)
                 type_match = re.search(r"Тип: (.+)", gpt_response)
                 email_match = re.search(r"Пошта: (.+)", gpt_response)
-                country_match = re.search(r"Країна: (.+)", gpt_response)
+                country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
 
                 name = name_match.group(1).strip() if name_match else title
                 org_type = type_match.group(1).strip() if type_match else "—"
@@ -132,7 +132,7 @@ if start and query:
                 summary = summary_match.group(0).strip() if summary_match else "Невідомо"
 
                 # Витягуємо країну
-                country_match = re.search(r"Країна: ([^
+                country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
 ]+)", gpt_response)
                 country = country_match.group(1).strip() if country_match else "-"
                 if "не вдалося визначити" in country.lower() or "важко" in country.lower():
