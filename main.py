@@ -70,16 +70,13 @@ def analyze_with_gpt(context, site_text, url):
 """
 
    try:
-    completion = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "Ти аналізуєш контент сайту і визначаєш потенційних клієнтів."},
-            {"role": "user", "content": prompt + "\n\nКонтент сайту:\n" + site_text[:4000]}
-        ]
-    )
-        return completion.choices[0].message.content.strip()
-    except Exception as e:
-        return f"Помилка: {str(e)}"
+        completion = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Ти аналізуєш контент сайту і визначаєш потенційних клієнтів."},
+                {"role": "user", "content": prompt + "\n\nКонтент сайту:\n" + site_text[:4000]}
+            ]
+        )
 
 # Побудова інтерфейсу
 st.title("🔍 Пошук потенційних клієнтів через Google + GPT")
