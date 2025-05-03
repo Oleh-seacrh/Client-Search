@@ -69,7 +69,7 @@ def analyze_with_gpt(context, site_text, url):
 Країна: ...
 """
 
-   try:
+    try:
         completion = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
