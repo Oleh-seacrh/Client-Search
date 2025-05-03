@@ -25,10 +25,10 @@ country_match = re.search(r"Країна: ([^\n\r]+)", gpt_response)
 country = country_match.group(1).strip() if country_match else "-"
 
 if any(x in country.lower() for x in ["не вдалося", "важко", "невідомо", "невизначено"]):
-    country = "-"
+country = "-"
 
 if any(x in email.lower() for x in ["не вказано", "інформацію", "email не знайдено"]):
-    email = "-"
+email = "-"
 
 return email, country
 
@@ -80,8 +80,8 @@ prompt = f"""
 Країна: ... (одним словом, лише назва країни)
 """
 response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": prompt}]
+model="gpt-4o",
+messages=[{"role": "user", "content": prompt}]
 )
 return response.choices[0].message.content
 
@@ -100,74 +100,74 @@ start = st.button("Пошук")
 if start and query:
 tab_name = query.strip().lower().replace("/", "_")[:30]
 with st.spinner("Пошук та GPT-аналіз..."):
-    params = {
-        "key": st.secrets["GOOGLE_API_KEY"],
-        "cx": st.secrets["CSE_ID"],
-        "q": query,
-        "num": num_results,
-        "start": start_index
-    }
-    results = requests.get("https://www.googleapis.com/customsearch/v1", params=params).json().get("items", [])
+params = {
+"key": st.secrets["GOOGLE_API_KEY"],
+"cx": st.secrets["CSE_ID"],
+"q": query,
+"num": num_results,
+"start": start_index
+}
+results = requests.get("https://www.googleapis.com/customsearch/v1", params=params).json().get("items", [])
 
-    gc = get_gsheet_client()
-    sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
+gc = get_gsheet_client()
+sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
-    try:
-        sheet = sh.worksheet(tab_name)
-    except:
-        sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="6")
-        sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Тип", "Країна", "Відгук GPT"])
+try:
+sheet = sh.worksheet(tab_name)
+except:
+sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="6")
+sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Тип", "Країна", "Відгук GPT"])
 
-    existing_links = set(sheet.col_values(2))
+existing_links = set(sheet.col_values(2))
 
-            for item in results:
-        title = item["title"]
-        raw_link = item["link"]
-        link = simplify_url(raw_link)
+for item in results:
+title = item["title"]
+raw_link = item["link"]
+link = simplify_url(raw_link)
 
-        if link in existing_links:
-            continue
+if link in existing_links:
+continue
 
-        snippet = item.get("snippet", "")
+snippet = item.get("snippet", "")
 
-        try:
-            gpt_response = analyze_with_gpt(title, snippet, link)
-        except Exception as e:
-            gpt_response = f"Помилка: {e}"
+try:
+gpt_response = analyze_with_gpt(title, snippet, link)
+except Exception as e:
+gpt_response = f"Помилка: {e}"
 
-        st.markdown(f"### 🔎 [{title}]({link})")
-        st.markdown("🧠 **GPT:**")
-        st.code(gpt_response, language="markdown")
+st.markdown(f"### 🔎 [{title}]({link})")
+st.markdown("🧠 **GPT:**")
+st.code(gpt_response, language="markdown")
 
-        # Аналіз відповіді GPT
-        if re.search(r"Клієнт:\s*Так", gpt_response):
-            name_match = re.search(r"Назва компанії: (.+)", gpt_response)
-            type_match = re.search(r"Тип: (.+)", gpt_response)
-            email_match = re.search(r"Пошта: ([^\n()]+)", gpt_response)
-            country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
-            client_match = re.search(r"Клієнт:\s*(Так|Ні)\b", gpt_response)
+# Аналіз відповіді GPT
+if re.search(r"Клієнт:\s*Так", gpt_response):
+name_match = re.search(r"Назва компанії: (.+)", gpt_response)
+type_match = re.search(r"Тип: (.+)", gpt_response)
+email_match = re.search(r"Пошта: ([^\n()]+)", gpt_response)
+country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
+client_match = re.search(r"Клієнт:\s*(Так|Ні)\b", gpt_response)
 
-            name = name_match.group(1).strip() if name_match else title
-            org_type = type_match.group(1).strip() if type_match else "-"
-            email = email_match.group(1).strip() if email_match else "-"
-            country = country_match.group(1).strip() if country_match else "-"
-            client_status = f"Клієнт: {client_match.group(1)}" if client_match else "Невідомо"
+name = name_match.group(1).strip() if name_match else title
+org_type = type_match.group(1).strip() if type_match else "-"
+email = email_match.group(1).strip() if email_match else "-"
+country = country_match.group(1).strip() if country_match else "-"
+client_status = f"Клієнт: {client_match.group(1)}" if client_match else "Невідомо"
 
-            # Очищення
-            if email.lower().startswith("інформація") or "не вказано" in email.lower():
-                email = "-"
-            if country.lower().startswith("інформація") or "не вдалося" in country.lower() or "важко" in country.lower():
-                country = "-"
+# Очищення
+if email.lower().startswith("інформація") or "не вказано" in email.lower():
+email = "-"
+if country.lower().startswith("інформація") or "не вдалося" in country.lower() or "важко" in country.lower():
+country = "-"
 
-            # Уникнення дублювання
-            if link not in existing_links:
-                sheet.append_row(
-                    [name, link, email, org_type, country, client_status],
-                    value_input_option="USER_ENTERED"
-                )
-                existing_links.add(link)
-
-
+# Уникнення дублювання
+if link not in existing_links:
+sheet.append_row(
+[name, link, email, org_type, country, client_status],
+value_input_option="USER_ENTERED"
+)
+existing_links.add(link)
 
 
-    st.success(f"✅ Дані збережено до вкладки '{tab_name}' з країною, типом і фільтром по 'Клієнт: Так'")
+
+
+st.success(f"✅ Дані збережено до вкладки '{tab_name}' з країною, типом і фільтром по 'Клієнт: Так'")
