@@ -9,7 +9,6 @@ import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Секрети
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 GSHEET_JSON = st.secrets["GSHEET_SERVICE_ACCOUNT"]
 GSHEET_SPREADSHEET_ID = "1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0"
@@ -44,11 +43,12 @@ def analyze_with_gpt(title, snippet, link):
     ❌ Не враховуйте лише офіційні представництва виробника (наприклад, "Fujifilm India", якщо це підрозділ бренду).
     ✅ Навіть офіційні дистриб’ютори — це потенційні клієнти.
 
-    Дайте відповідь у форматі:
+    Формат відповіді:
     Назва компанії: ...
     Клієнт: Так/Ні — ...
     Тип: ...
     Пошта: ...
+    Країна: ...
     """
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -86,8 +86,8 @@ if start and query:
         try:
             sheet = sh.worksheet(tab_name)
         except:
-            sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="5")
-            sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Тип", "Відгук GPT"])
+            sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="6")
+            sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Тип", "Країна", "Відгук GPT"])
 
         existing_links = set(sheet.col_values(2))
 
@@ -113,12 +113,14 @@ if start and query:
                 name_match = re.search(r"Назва компанії: (.+)", gpt_response)
                 type_match = re.search(r"Тип: (.+)", gpt_response)
                 email_match = re.search(r"Пошта: (.+)", gpt_response)
+                country_match = re.search(r"Країна: (.+)", gpt_response)
 
                 name = name_match.group(1).strip() if name_match else title
                 org_type = type_match.group(1).strip() if type_match else "—"
                 email = email_match.group(1).strip() if email_match else "—"
+                country = country_match.group(1).strip() if country_match else "—"
 
-                sheet.append_row([name, link, email, org_type, gpt_response], value_input_option="USER_ENTERED")
+                sheet.append_row([name, link, email, org_type, country, gpt_response], value_input_option="USER_ENTERED")
                 existing_links.add(link)
 
-        st.success(f"✅ Дані збережено до вкладки '{tab_name}' (з email, типом і фільтром по 'Клієнт: Так')")
+        st.success(f"✅ Дані збережено до вкладки '{tab_name}' з країною, типом і фільтром по 'Клієнт: Так'")
