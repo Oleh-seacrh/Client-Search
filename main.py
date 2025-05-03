@@ -77,7 +77,7 @@ def analyze_with_gpt(title, snippet, link):
 Клієнт: Так/Ні — (пояснення)  
 Тип: ... (одним словом)  
 Пошта: ...  
-Країна: ... (одним словом)
+Країна: ... (одним словом, лише назва країни)
     """
     response = client.chat.completions.create(
         model="gpt-4o",
