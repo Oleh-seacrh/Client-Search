@@ -16,6 +16,19 @@ GSHEET_SPREADSHEET_ID = "1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0"
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
+def extract_email_and_country(gpt_response):
+    import re
+    email_match = re.search(r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", gpt_response)
+    email = email_match.group(1).strip() if email_match else "-"
+    country_match = re.search(r"Країна: ([^\n,]+)", gpt_response)
+    country = country_match.group(1).strip() if country_match else "-"
+    if "не вдалося визначити" in country.lower() or "важко" in country.lower():
+        country = "-"
+    if "не вказано" in email.lower() or "інформацію" in email.lower():
+        email = "-"
+    return email, country
+
+
 def get_gsheet_client():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds_dict = json.loads(GSHEET_JSON)
@@ -143,7 +156,14 @@ if start and query:
                 if "не вказано" in email.lower() or "інформацію" in email.lower():
                     email = "-"
 
-                sheet.append_row([name, link, email, org_type, country, summary], value_input_option="USER_ENTERED")
+                email, country = extract_email_and_country(gpt_response)
+                name_match = re.search(r"Назва компанії: (.+)", gpt_response)
+                type_match = re.search(r"Тип: (.+)", gpt_response)
+                client_match = re.search(r"Клієнт: (Так|Ні)", gpt_response)
+                name = name_match.group(1).strip() if name_match else title
+                org_type = type_match.group(1).strip() if type_match else "-"
+                client_status = f"Клієнт: {client_match.group(1)}" if client_match else "-"
+                sheet.append_row([name, link, email, org_type, country, client_status], value_input_option="USER_ENTERED")
                 summary = summary_match.group(0).strip() if summary_match else "Невідомо"
                 if email.lower().startswith("інформація"):
                     email = ""
