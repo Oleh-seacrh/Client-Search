@@ -18,14 +18,18 @@ client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 def extract_email_and_country(gpt_response):
     import re
-    email_match = re.search(r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", gpt_response)
-    email = email_match.group(1).strip() if email_match else "-"
-    country_match = re.search(r"Країна: ([^\n,]+)", gpt_response)
+    email_match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", gpt_response)
+    email = email_match.group(0).strip() if email_match else "-"
+
+    country_match = re.search(r"Країна: ([^\n\r]+)", gpt_response)
     country = country_match.group(1).strip() if country_match else "-"
-    if "не вдалося визначити" in country.lower() or "важко" in country.lower():
+
+    if any(x in country.lower() for x in ["не вдалося", "важко", "невідомо", "невизначено"]):
         country = "-"
-    if "не вказано" in email.lower() or "інформацію" in email.lower():
+
+    if any(x in email.lower() for x in ["не вказано", "інформацію", "email не знайдено"]):
         email = "-"
+
     return email, country
 
 
