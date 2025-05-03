@@ -138,6 +138,11 @@ if start and query:
         except:
             sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="6")
             sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Тип", "Країна", "Відгук GPT"])
+            try:
+            search_log_sheet = sh.worksheet("Пошуки")
+        except:
+            search_log_sheet = sh.add_worksheet(title="Пошуки", rows="1000", cols="4")
+            search_log_sheet.append_row(["Ключові слова", "Назва", "Посилання", "GPT-відповідь"])
 
         existing_links = set(sheet.col_values(2))
 
