@@ -1,4 +1,5 @@
 
+# Оновлено: нормалізація email, країни та відгуку GPT
 import streamlit as st
 import requests
 import openai
@@ -126,7 +127,25 @@ if start and query:
                 email = email_match.group(1).strip() if email_match else "—"
                 country = country_match.group(1).strip() if country_match else "—"
 
+                # Витягуємо лише рішення GPT
                 summary_match = re.search(r"Клієнт: (Так|Ні).*", gpt_response)
+                summary = summary_match.group(0).strip() if summary_match else "Невідомо"
+
+                # Витягуємо країну
+                country_match = re.search(r"Країна: ([^
+]+)", gpt_response)
+                country = country_match.group(1).strip() if country_match else "-"
+                if "не вдалося визначити" in country.lower() or "важко" in country.lower():
+                    country = "-"
+
+                # Витягуємо email
+                email_match = re.search(r"Пошта: ([^
+()]+)", gpt_response)
+                email = email_match.group(1).strip() if email_match else "-"
+                if "не вказано" in email.lower() or "інформацію" in email.lower():
+                    email = "-"
+
+                sheet.append_row([name, link, email, org_type, country, summary], value_input_option="USER_ENTERED")
                 summary = summary_match.group(0).strip() if summary_match else "Невідомо"
                 if email.lower().startswith("інформація"):
                     email = ""
