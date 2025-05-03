@@ -138,7 +138,7 @@ if start and query:
             st.markdown("🧠 **GPT:**")
             st.code(gpt_response, language="markdown")
 
-        if re.search(r"Клієнт:\s*Так", gpt_response):
+    if re.search(r"Клієнт:\s*Так", gpt_response):
     # Витягуємо дані з відповіді GPT
     name_match = re.search(r"Назва компанії: (.+)", gpt_response)
     type_match = re.search(r"Тип: (.+)", gpt_response)
