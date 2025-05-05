@@ -90,10 +90,9 @@ if st.button("Аналізувати нові записи GPT"):
             st.error("Вкладка 'Пошуки' не знайдена.")
             st.stop()
 
-        # Читаємо всі дані з Пошуків
         records = search_sheet.get_all_records()
         rows_to_analyze = []
-        for idx, row in enumerate(records, start=2):  # з другої, бо перша — заголовки
+        for idx, row in enumerate(records, start=2):  # починаємо з другого рядка (1 — заголовок)
             gpt_field = str(row.get("GPT-відповідь", "")).strip().lower()
             if not gpt_field or gpt_field in ["-", "очікує"]:
                 rows_to_analyze.append((idx, row))
@@ -104,53 +103,65 @@ if st.button("Аналізувати нові записи GPT"):
             st.info("Немає записів для аналізу.")
             st.stop()
 
-        # Створюємо або відкриваємо вкладку 'Аналіз'
+        # Відкриваємо або створюємо вкладку "Аналіз"
         try:
             analysis_sheet = sh.worksheet("Аналіз")
         except:
-            analysis_sheet = sh.add_worksheet(title="Аналіз", rows="1000", cols="7")
-            analysis_sheet.append_row(["Назва", "Сайт", "Ключові слова", "GPT-відповідь", "Сторінка", "Дата", "Статус GPT"], value_input_option="USER_ENTERED")
+            analysis_sheet = sh.add_worksheet(title="Аналіз", rows="1000", cols="8")
+            analysis_sheet.append_row(
+                ["Назва", "Сайт", "Ключові слова", "Висновок", "Потенційний клієнт", "Сторінка", "Дата", "Статус GPT"],
+                value_input_option="USER_ENTERED"
+            )
 
         for idx, row in rows_to_analyze:
             title = row.get("Назва", "")
             site = row.get("Сайт", "")
             keywords = row.get("Ключові слова", "")
-            snippet = ""  # Поки не зберігаємо snippet — додати пізніше, якщо потрібно
             page = row.get("Сторінка", "")
             date = row.get("Дата", "")
 
-            # GPT-запит
             try:
                 prompt = f"""
-                Ти — асистент з продажу рентген-плівки, касет та медичних витратників.
-                Чи може наступна компанія бути потенційним клієнтом?
+                Ти — асистент з продажу компанії, яка постачає рентген-плівку, касети, медичні принтери та витратні матеріали.
 
-                Назва: {title}
+                Назва компанії: {title}
                 Сайт: {site}
-                Ключові слова пошуку: {keywords}
+                Ключові слова: {keywords}
 
-                Відповідь у форматі:
-                Назва компанії: ...
-                Клієнт: Так/Ні — коротке пояснення
-                Тип: (одне слово)
-                Країна: (одне слово)
-                Пошта: ...
+                Завдання:
+                - Визначи, чи компанія є потенційним клієнтом (Так/Ні).
+                - Якщо Так, вкажи її тип (наприклад: дистриб’ютор, постачальник).
+                - Дай короткий висновок — одне речення, наприклад: "Так, дистриб’ютор, працює з вашими товарами."
+
+                Формат:
+                Потенційний клієнт: Так/Ні
+                Висновок: (одне речення)
                 """
                 response = client.chat.completions.create(
                     model="gpt-4o",
                     messages=[{"role": "user", "content": prompt}]
                 )
-                gpt_result = response.choices[0].message.content
+                content = response.choices[0].message.content.strip()
+
+                # Витягуємо окремо "Потенційний клієнт" та "Висновок"
+                client_match = re.search(r"Потенційний клієнт:\s*(Так|Ні)", content)
+                summary_match = re.search(r"Висновок:\s*(.+)", content)
+
+                is_client = client_match.group(1) if client_match else "-"
+                summary = summary_match.group(1).strip() if summary_match else content
+
                 status = "Аналізовано"
+
             except Exception as e:
-                gpt_result = f"Помилка: {e}"
+                summary = f"Помилка: {e}"
+                is_client = "-"
                 status = "Помилка"
 
-            # Запис у вкладку 'Аналіз'
-            analysis_sheet.append_row([title, site, keywords, gpt_result, page, date, status], value_input_option="USER_ENTERED")
+            # Додаємо в "Аналіз"
+            analysis_sheet.append_row([title, site, keywords, summary, is_client, page, date, status], value_input_option="USER_ENTERED")
 
-            # Оновлюємо у вкладці 'Пошуки' поле GPT-відповіді
-            search_sheet.update(f"F{idx}:G{idx}", [[gpt_result, status]])
+            # Оновлюємо лише статус у вкладці "Пошуки"
+            search_sheet.update(f"G{idx}", [[status]])
 
         st.success(f"✅ GPT-аналіз виконано для {len(rows_to_analyze)} записів.")
 
