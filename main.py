@@ -1,113 +1,31 @@
 import streamlit as st
 import requests
-import openai
 import re
 from urllib.parse import urlparse
-import os
 import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
+# Секрети
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 GSHEET_JSON = st.secrets["GSHEET_SERVICE_ACCOUNT"]
 GSHEET_SPREADSHEET_ID = "1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0"
 
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
-
-from bs4 import BeautifulSoup
-
-def extract_email_and_country(gpt_response, base_url):
-    def find_contact_url(base_url):
-        try:
-            resp = requests.get(base_url, timeout=7)
-            soup = BeautifulSoup(resp.text, "html.parser")
-            for a in soup.find_all("a", href=True):
-                href = a["href"].lower()
-                if any(word in href for word in ["contact", "contacts", "контакт", "контакти", "contact-us"]):
-                    if href.startswith("http"):
-                        return href
-                    elif href.startswith("/"):
-                        return base_url.rstrip("/") + href
-            return base_url
-        except:
-            return base_url
-
-    # Знаходимо контактну сторінку
-    contact_url = find_contact_url(base_url)
-
-    # Парсимо email зі сторінки контактів
-    try:
-        resp = requests.get(contact_url, timeout=7)
-        emails = re.findall(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", resp.text)
-        email = emails[0] if emails else "-"
-    except:
-        email = "-"
-
-    # Країна — з GPT
-    country_match = re.search(r"Країна: ([^\n\r]+)", gpt_response)
-    country = country_match.group(1).strip() if country_match else "-"
-
-    if any(x in country.lower() for x in ["не вдалося", "важко", "невідомо", "невизначено"]):
-        country = "-"
-    if any(x in email.lower() for x in ["не вказано", "інформацію", "email не знайдено"]):
-        email = "-"
-
-    return email, country
-
+# Підключення до Google Sheets
 def get_gsheet_client():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds_dict = json.loads(GSHEET_JSON)
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     return gspread.authorize(creds)
 
+# Спрощення URL
 def simplify_url(link):
     parsed = urlparse(link)
     return f"{parsed.scheme}://{parsed.netloc}"
 
-def analyze_with_gpt(title, snippet, link):
-    prompt = f"""
-    Ти — асистент з продажу в компанії, яка займається постачанням рентген-плівки, касет, принтерів та медичних витратних матеріалів.
-
-    Вебсайт нашої компанії: https://www.xraymedem.com
-
-    Завдання:
-    На основі інформації нижче (назви, опису та сторінки), визнач:
-    — Чи може компанія бути нашим потенційним клієнтом?
-    — Її тип (тільки одне слово: дистриб'ютор, реселер, виробник, постачальник, платформа тощо)
-    — Країну (одним словом: наприклад, Китай, Індія, США, Оман...)
-
-    Вхідні дані:
-    Назва (Google): {title}  
-    Опис: {snippet}  
-    Лінк: {link}
-
-    ВАЖЛИВО:
-    — Потенційні клієнти: всі, хто продає або згадує рентген-плівку, касети, медичні принтери.  
-    — Це можуть бути: дистриб’ютори, реселери, постачальники, конкуренти.  
-    — Не вважати клієнтом офіційне представництво виробника (наприклад, "Fujifilm India", якщо це підрозділ бренду).  
-    — Навіть офіційні дистриб’ютори бренду — це наші потенційні клієнти.
-
-    Визначення країни — за такими ознаками:
-    — домен сайту (.cn, .in, .ua, .com тощо)  
-    — назва міста або країни в описі (наприклад: Shenzhen, China)  
-    — міжнародний код телефону (+86 = Китай)  
-    — згадка в назві або структурі (наприклад "India Pvt Ltd")
-
-    Формат відповіді:
-    Назва компанії: ...  
-    Клієнт: Так/Ні — (пояснення)  
-    Тип: ... (одним словом)  
-    Пошта: ...  
-    Країна: ... (одним словом, лише назва країни)
-    """
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
-
-st.set_page_config(page_title="Пошук клієнтів GPT", layout="wide")
-st.title("🔍 Пошук")
+# Інтерфейс
+st.set_page_config(page_title="Пошук сайтів", layout="wide")
+st.title("🔍 Пошук сайтів без аналізу")
 
 query = st.text_input("Введи ключові слова:")
 col1, col2 = st.columns(2)
@@ -120,7 +38,7 @@ start = st.button("Пошук")
 
 if start and query:
     tab_name = query.strip().lower().replace("/", "_")[:30]
-    with st.spinner("Пошук та GPT-аналіз..."):
+    with st.spinner("Пошук сайтів..."):
         params = {
             "key": st.secrets["GOOGLE_API_KEY"],
             "cx": st.secrets["CSE_ID"],
@@ -137,57 +55,22 @@ if start and query:
             sheet = sh.worksheet(tab_name)
         except:
             sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="6")
-            sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Тип", "Країна", "Відгук GPT"])
-
-        try:
-            search_log_sheet = sh.worksheet("Пошуки")
-        except:
-            search_log_sheet = sh.add_worksheet(title="Пошуки", rows="1000", cols="5")
-            search_log_sheet.append_row(["Ключові слова", "Назва", "Посилання", "GPT-відповідь", "Сторінка"])
-
+            sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Тип", "Країна", "Статус"], value_input_option="USER_ENTERED")
 
         existing_links = set(sheet.col_values(2))
+        new_count = 0
 
         for item in results:
-            title = item["title"]
-            raw_link = item["link"]
-            link = simplify_url(raw_link)
+            title = item.get("title", "")
+            raw_link = item.get("link", "")
+            simplified = simplify_url(raw_link)
 
-            if link in existing_links:
+            if simplified in existing_links:
                 continue
 
-            snippet = item.get("snippet", "")
+            # Додаємо без аналізу
+            sheet.append_row([title, simplified, "-", "-", "-", "-"], value_input_option="USER_ENTERED")
+            existing_links.add(simplified)
+            new_count += 1
 
-            try:
-                gpt_response = analyze_with_gpt(title, snippet, link)
-                # Зберігаємо пошукову історію у вкладку "Пошуки"
-                search_log_sheet.append_row([query, title, link, gpt_response, start_index], value_input_option="USER_ENTERED")
-            except Exception as e:
-                gpt_response = f"Помилка: {e}"
-
-            st.markdown(f"### 🔎 [{title}]({link})")
-            st.markdown("🧠 **GPT:**")
-            st.code(gpt_response, language="markdown")
-
-            if re.search(r"Клієнт:\s*Так", gpt_response):
-                name_match = re.search(r"Назва компанії: (.+)", gpt_response)
-                type_match = re.search(r"Тип: (.+)", gpt_response)
-                email_match = re.search(r"Пошта: ([^\n()]+)", gpt_response)
-                country_match = re.search(r"Країна: ([^\n]+)", gpt_response)
-                client_match = re.search(r"Клієнт:\s*(Так|Ні)\b", gpt_response)
-
-                name = name_match.group(1).strip() if name_match else title
-                org_type = type_match.group(1).strip() if type_match else "-"
-                email, country = extract_email_and_country(gpt_response, link)
-                client_status = f"Клієнт: {client_match.group(1)}" if client_match else "Невідомо"
-
-                if email.lower().startswith("інформація") or "не вказано" in email.lower():
-                    email = "-"
-                if country.lower().startswith("інформація") or "не вдалося" in country.lower() or "важко" in country.lower():
-                    country = "-"
-
-                if link not in existing_links:
-                    sheet.append_row([name, link, email, org_type, country, client_status], value_input_option="USER_ENTERED")
-                    existing_links.add(link)
-
-        st.success(f"✅ Дані збережено до вкладки '{tab_name}' з країною, типом і фільтром по 'Клієнт: Так'")
+        st.success(f"✅ Додано {new_count} нових сайтів до вкладки '{tab_name}'. GPT-аналіз поки не використовується.")
