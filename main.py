@@ -3,6 +3,7 @@ import requests
 import re
 from urllib.parse import urlparse
 import json
+from bs4 import BeautifulSoup
 import openai
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -76,7 +77,10 @@ if start and query:
         st.success(f"✅ Додано {new_count} нових сайтів до вкладки 'Пошуки'.")
         
         # --------------------- GPT-Аналіз нових сайтів ---------------------
-client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])  # Використовуємо нову модель
+import openai
+from bs4 import BeautifulSoup
+
+client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 st.header("🤖 GPT-Аналіз нових сайтів")
 
@@ -125,12 +129,16 @@ if st.button("Аналізувати нові записи GPT"):
             date = row.get("Дата", "")
 
             try:
+                # Отримуємо текст сторінки
+                site_text = get_page_text(site)
+
                 prompt = f"""
                 Ти — асистент з продажу компанії, яка постачає рентген-плівку, касети, медичні принтери та витратні матеріали.
 
                 Назва компанії: {title}
                 Сайт: {site}
                 Ключові слова: {keywords}
+                Контент сайту (обмежено): {site_text}
 
                 Завдання:
                 - Визначи, чи компанія є потенційним клієнтом (Так/Ні).
