@@ -183,9 +183,18 @@ if st.button("Аналізувати нові записи GPT"):
                 summary = f"Помилка: {e}"
                 status = "Помилка"
 
-            analysis_sheet.append_row([
-                title, site, keywords, summary, is_client, page, date, status
-            ], value_input_option="USER_ENTERED")
+            # Додаємо до "Аналіз" чітко в 8 колонок
+            analysis_row = [
+                title or "-",     # Назва
+                site or "-",      # Сайт
+                keywords or "-",  # Ключові слова
+                summary or "-",   # Висновок
+                is_client or "-", # Потенційний клієнт
+                page or "-",      # Сторінка
+                date or "-",      # Дата
+                status or "-"     # Статус GPT
+            ]
+            analysis_sheet.append_row(analysis_row, value_input_option="USER_ENTERED")
 
             analyzed_sites.add(site)
             analyzed_count += 1
