@@ -93,7 +93,7 @@ if st.button("Аналізувати нові записи GPT"):
 
         records = search_sheet.get_all_records()
         rows_to_analyze = []
-        for idx, row in enumerate(records, start=2):  # з другого рядка, бо перший — заголовок
+        for idx, row in enumerate(records, start=2):  # починаємо з другого рядка
             gpt_field = str(row.get("GPT-відповідь", "")).strip().lower()
             if not gpt_field or gpt_field in ["-", "очікує"]:
                 rows_to_analyze.append((idx, row))
@@ -104,7 +104,7 @@ if st.button("Аналізувати нові записи GPT"):
             st.info("Немає нових записів для аналізу.")
             st.stop()
 
-        # Створюємо або відкриваємо вкладку "Аналіз"
+        # Відкриваємо або створюємо вкладку "Аналіз"
         try:
             analysis_sheet = sh.worksheet("Аналіз")
         except:
@@ -144,12 +144,17 @@ if st.button("Аналізувати нові записи GPT"):
                 )
                 content = response.choices[0].message.content.strip()
 
-                # Парсимо GPT-відповідь
-                client_match = re.search(r"Потенційний клієнт:\s*(Так|Ні)", content)
-                summary_match = re.search(r"Висновок:\s*(.+)", content)
+                # Парсимо GPT-відповідь без ризику падіння
+                try:
+                    client_match = re.search(r"Потенційний клієнт:\s*(Так|Ні)", content)
+                    summary_match = re.search(r"Висновок:\s*(.+)", content)
 
-                is_client = client_match.group(1) if client_match else "-"
-                summary = summary_match.group(1).strip() if summary_match else content
+                    is_client = client_match.group(1) if client_match else "-"
+                    summary = summary_match.group(1).strip() if summary_match else content
+                except Exception as parse_error:
+                    is_client = "-"
+                    summary = f"GPT format error: {parse_error}"
+
                 status = "Аналізовано"
 
             except Exception as e:
