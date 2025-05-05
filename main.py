@@ -195,11 +195,12 @@ if st.button("Аналізувати нові записи GPT"):
                 status or "-"     # Статус GPT
             ]
             analysis_sheet.append_row(analysis_row, value_input_option="USER_ENTERED")
-            # Після запису в "Аналіз" оновлюємо статус в "Пошуки"
-                try:
-                    search_sheet.update_cell(idx, 7, status)
-                except Exception as update_error:
-                    st.warning(f"Не вдалося оновити статус для '{title}': {update_error}")
+                        # Після запису в "Аналіз" оновлюємо статус в "Пошуки"
+            try:
+                search_sheet.update_cell(idx, 7, status)
+            except Exception as update_error:
+                st.warning(f"Не вдалося оновити статус для '{title}': {update_error}")
+
 
             analyzed_sites.add(site)
             analyzed_count += 1
