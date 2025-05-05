@@ -101,27 +101,12 @@ if st.button("Аналізувати нові записи GPT"):
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
-        # Отримуємо вкладку "Пошуки"
         try:
             search_sheet = sh.worksheet("Пошуки")
         except:
             st.error("Вкладка 'Пошуки' не знайдена.")
             st.stop()
 
-        records = search_sheet.get_all_records()
-        rows_to_analyze = []
-        for idx, row in enumerate(records, start=2):
-            gpt_field = str(row.get("GPT-відповідь", "")).strip().lower()
-            if not gpt_field or gpt_field in ["-", "очікує"]:
-                rows_to_analyze.append((idx, row))
-            if len(rows_to_analyze) >= num_to_analyze:
-                break
-
-        if not rows_to_analyze:
-            st.info("Немає нових записів для аналізу.")
-            st.stop()
-
-        # Відкриваємо або створюємо вкладку "Аналіз"
         try:
             analysis_sheet = sh.worksheet("Аналіз")
         except:
@@ -131,15 +116,29 @@ if st.button("Аналізувати нові записи GPT"):
                 value_input_option="USER_ENTERED"
             )
 
-        for idx, row in rows_to_analyze:
+        records = search_sheet.get_all_records()
+        analyzed_sites = set()
+        existing_analysis = analysis_sheet.get_all_records()
+        for r in existing_analysis:
+            site_val = r.get("Сайт", "").strip().lower()
+            if site_val:
+                analyzed_sites.add(site_val)
+
+        analyzed_count = 0
+        for idx, row in enumerate(records, start=2):
+            if analyzed_count >= num_to_analyze:
+                break
+
             title = row.get("Назва", "")
-            site = row.get("Сайт", "")
+            site = row.get("Сайт", "").strip().lower()
             keywords = row.get("Ключові слова", "")
             page = row.get("Сторінка", "")
             date = row.get("Дата", "")
 
+            if site in analyzed_sites:
+                continue
+
             try:
-                # Отримуємо контент із сайту
                 site_text = get_page_text(site)
 
                 prompt = f"""
@@ -184,18 +183,11 @@ if st.button("Аналізувати нові записи GPT"):
                 summary = f"Помилка: {e}"
                 status = "Помилка"
 
-            # Додаємо в "Аналіз"
             analysis_sheet.append_row([
                 title, site, keywords, summary, is_client, page, date, status
             ], value_input_option="USER_ENTERED")
 
-            # Оновлюємо статус у "Пошуки"
-            try:
-                search_sheet.update_cell(idx, 7, status)
-            except Exception as update_error:
-                st.warning(f"Не вдалося оновити статус для '{title}': {update_error}")
+            analyzed_sites.add(site)
+            analyzed_count += 1
 
-        st.success(f"✅ GPT-аналіз виконано для {len(rows_to_analyze)} записів.")
-
-
-
+        st.success(f"✅ GPT-аналіз виконано для {analyzed_count} нових записів.")
