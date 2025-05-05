@@ -34,7 +34,8 @@ col1, col2 = st.columns(2)
 with col1:
     num_results = st.slider("Кількість результатів", min_value=1, max_value=100, value=10, step=1)
 with col2:
-    start_index = st.number_input("Починати з результату №", min_value=1, max_value=91, value=1, step=10)
+    start_options = list(range(1, 101, 10))
+    start_index = st.selectbox("Сторінка результатів:", options=start_options, index=0))
 
 start = st.button("Пошук")
 
