@@ -39,6 +39,8 @@ with col2:
 start = st.button("Пошук")
 
 if start and query:
+    st.markdown("🔁 **Тригер активовано — виконується пошук...**")  # DEBUG
+
     with st.spinner("Пошук сайтів..."):
         params = {
             "key": st.secrets["GOOGLE_API_KEY"],
@@ -49,12 +51,10 @@ if start and query:
         }
         results = requests.get("https://www.googleapis.com/customsearch/v1", params=params).json().get("items", [])
 
-        # Обчислюємо номер сторінки
         page_number = ((start_index - 1) // num_results) + 1
 
-        # DEBUG-лог
-        st.markdown(f"### 🔍 Пошук для: **{query}**")
-        st.markdown(f"**📄 Сторінка №{page_number}** (start_index = `{start_index}`, results = `{len(results)}`)")
+        st.markdown(f"### 🔍 Результати для: **{query}**")
+        st.markdown(f"➡️ **Сторінка №{page_number}** (start_index = `{start_index}`, результатів отримано: `{len(results)}`)")
 
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
@@ -74,7 +74,7 @@ if start and query:
             simplified = simplify_url(raw_link)
 
             if simplified in existing_links:
-                st.markdown(f"⚠️ Пропущено (вже є): `{simplified}`")
+                st.markdown(f"🔁 Пропущено (вже є): `{simplified}`")
                 continue
 
             st.markdown(f"✅ Додано: **{title}** — `{simplified}`")
@@ -87,6 +87,8 @@ if start and query:
             new_count += 1
 
         st.success(f"🟢 Додано {new_count} нових сайтів на сторінці {page_number}")
+
+
 
         
         # --------------------- GPT-Аналіз нових сайтів ---------------------
