@@ -3,8 +3,10 @@ import requests
 import re
 from urllib.parse import urlparse
 import json
+import openai
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+openai.api_key = OPENAI_API_KEY
 
 # Секрети
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
@@ -75,6 +77,7 @@ if start and query:
         st.success(f"✅ Додано {new_count} нових сайтів до вкладки 'Пошуки'.")
         
         # --------------------- GPT-Аналіз нових сайтів ---------------------
+
 st.header("🤖 GPT-Аналіз нових сайтів")
 
 num_to_analyze = st.slider("Скільки записів аналізувати за раз", min_value=1, max_value=50, value=10)
@@ -93,7 +96,7 @@ if st.button("Аналізувати нові записи GPT"):
 
         records = search_sheet.get_all_records()
         rows_to_analyze = []
-        for idx, row in enumerate(records, start=2):  # починаємо з другого рядка
+        for idx, row in enumerate(records, start=2):  # з другого рядка
             gpt_field = str(row.get("GPT-відповідь", "")).strip().lower()
             if not gpt_field or gpt_field in ["-", "очікує"]:
                 rows_to_analyze.append((idx, row))
@@ -138,13 +141,14 @@ if st.button("Аналізувати нові записи GPT"):
                 Потенційний клієнт: Так/Ні
                 Висновок: (одне речення)
                 """
-                response = client.chat.completions.create(
+
+                response = openai.ChatCompletion.create(
                     model="gpt-4o",
                     messages=[{"role": "user", "content": prompt}]
                 )
+
                 content = response.choices[0].message.content.strip()
 
-                # Парсимо GPT-відповідь без ризику падіння
                 try:
                     client_match = re.search(r"Потенційний клієнт:\s*(Так|Ні)", content)
                     summary_match = re.search(r"Висновок:\s*(.+)", content)
@@ -174,5 +178,6 @@ if st.button("Аналізувати нові записи GPT"):
                 st.warning(f"Не вдалося оновити статус для '{title}': {update_error}")
 
         st.success(f"✅ GPT-аналіз виконано для {len(rows_to_analyze)} записів.")
+
 
 
