@@ -84,6 +84,7 @@ if st.button("Аналізувати нові записи GPT"):
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
+        # Отримуємо вкладку "Пошуки"
         try:
             search_sheet = sh.worksheet("Пошуки")
         except:
@@ -92,7 +93,7 @@ if st.button("Аналізувати нові записи GPT"):
 
         records = search_sheet.get_all_records()
         rows_to_analyze = []
-        for idx, row in enumerate(records, start=2):  # починаємо з другого рядка (1 — заголовок)
+        for idx, row in enumerate(records, start=2):  # з другого рядка, бо перший — заголовок
             gpt_field = str(row.get("GPT-відповідь", "")).strip().lower()
             if not gpt_field or gpt_field in ["-", "очікує"]:
                 rows_to_analyze.append((idx, row))
@@ -100,10 +101,10 @@ if st.button("Аналізувати нові записи GPT"):
                 break
 
         if not rows_to_analyze:
-            st.info("Немає записів для аналізу.")
+            st.info("Немає нових записів для аналізу.")
             st.stop()
 
-        # Відкриваємо або створюємо вкладку "Аналіз"
+        # Створюємо або відкриваємо вкладку "Аналіз"
         try:
             analysis_sheet = sh.worksheet("Аналіз")
         except:
@@ -143,25 +144,30 @@ if st.button("Аналізувати нові записи GPT"):
                 )
                 content = response.choices[0].message.content.strip()
 
-                # Витягуємо окремо "Потенційний клієнт" та "Висновок"
+                # Парсимо GPT-відповідь
                 client_match = re.search(r"Потенційний клієнт:\s*(Так|Ні)", content)
                 summary_match = re.search(r"Висновок:\s*(.+)", content)
 
                 is_client = client_match.group(1) if client_match else "-"
                 summary = summary_match.group(1).strip() if summary_match else content
-
                 status = "Аналізовано"
 
             except Exception as e:
-                summary = f"Помилка: {e}"
                 is_client = "-"
+                summary = f"Помилка: {e}"
                 status = "Помилка"
 
             # Додаємо в "Аналіз"
-            analysis_sheet.append_row([title, site, keywords, summary, is_client, page, date, status], value_input_option="USER_ENTERED")
+            analysis_sheet.append_row([
+                title, site, keywords, summary, is_client, page, date, status
+            ], value_input_option="USER_ENTERED")
 
-            # Оновлюємо лише статус у вкладці "Пошуки"
-            search_sheet.update(f"G{idx}", [[status]])
+            # Оновлюємо статус у "Пошуки"
+            try:
+                search_sheet.update_cell(idx, 7, status)
+            except Exception as update_error:
+                st.warning(f"Не вдалося оновити статус для '{title}': {update_error}")
 
         st.success(f"✅ GPT-аналіз виконано для {len(rows_to_analyze)} записів.")
+
 
