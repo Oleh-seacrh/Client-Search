@@ -84,6 +84,19 @@ client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 st.header("🤖 GPT-Аналіз нових сайтів")
 
+# Функція для парсингу тексту сайту
+def get_page_text(url):
+    try:
+        response = requests.get(url, timeout=7)
+        soup = BeautifulSoup(response.text, "html.parser")
+        for tag in soup(["script", "style", "noscript"]):
+            tag.extract()
+        text = soup.get_text(separator=" ")
+        return ' '.join(text.split())[:2000]  # обмеження до 2000 символів
+    except Exception as e:
+        return f"Не вдалося отримати текст сайту: {e}"
+
+# Скільки сайтів аналізувати за раз
 num_to_analyze = st.slider("Скільки записів аналізувати за раз", min_value=1, max_value=50, value=10)
 
 if st.button("Аналізувати нові записи GPT"):
@@ -129,7 +142,7 @@ if st.button("Аналізувати нові записи GPT"):
             date = row.get("Дата", "")
 
             try:
-                # Отримуємо текст сторінки
+                # Отримуємо контент із сайту
                 site_text = get_page_text(site)
 
                 prompt = f"""
@@ -186,5 +199,6 @@ if st.button("Аналізувати нові записи GPT"):
                 st.warning(f"Не вдалося оновити статус для '{title}': {update_error}")
 
         st.success(f"✅ GPT-аналіз виконано для {len(rows_to_analyze)} записів.")
+
 
 
