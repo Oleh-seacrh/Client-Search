@@ -25,7 +25,7 @@ def simplify_url(link):
 
 # Інтерфейс
 st.set_page_config(page_title="Пошук сайтів", layout="wide")
-st.title("🔍 Пошук сайтів без аналізу")
+st.title("🔍 Пошук сайтів без аналізу (тільки вкладка 'Пошуки')")
 
 query = st.text_input("Введи ключові слова:")
 col1, col2 = st.columns(2)
@@ -37,7 +37,6 @@ with col2:
 start = st.button("Пошук")
 
 if start and query:
-    tab_name = query.strip().lower().replace("/", "_")[:30]
     with st.spinner("Пошук сайтів..."):
         params = {
             "key": st.secrets["GOOGLE_API_KEY"],
@@ -51,13 +50,14 @@ if start and query:
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
+        # Отримуємо або створюємо вкладку "Пошуки"
         try:
-            sheet = sh.worksheet(tab_name)
+            search_sheet = sh.worksheet("Пошуки")
         except:
-            sheet = sh.add_worksheet(title=tab_name, rows="1000", cols="6")
-            sheet.append_row(["Назва компанії", "Сайт", "Пошта", "Тип", "Країна", "Статус"], value_input_option="USER_ENTERED")
+            search_sheet = sh.add_worksheet(title="Пошуки", rows="1000", cols="5")
+            search_sheet.append_row(["Ключові слова", "Назва", "Сайт", "Сторінка", "Дата"], value_input_option="USER_ENTERED")
 
-        existing_links = set(sheet.col_values(2))
+        existing_links = set(search_sheet.col_values(3))
         new_count = 0
 
         for item in results:
@@ -68,9 +68,8 @@ if start and query:
             if simplified in existing_links:
                 continue
 
-            # Додаємо без аналізу
-            sheet.append_row([title, simplified, "-", "-", "-", "-"], value_input_option="USER_ENTERED")
+            search_sheet.append_row([query, title, simplified, start_index, st.session_state.get("current_date", "")], value_input_option="USER_ENTERED")
             existing_links.add(simplified)
             new_count += 1
 
-        st.success(f"✅ Додано {new_count} нових сайтів до вкладки '{tab_name}'. GPT-аналіз поки не використовується.")
+        st.success(f"✅ Додано {new_count} нових сайтів до вкладки 'Пошуки'.")
