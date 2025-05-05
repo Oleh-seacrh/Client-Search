@@ -76,7 +76,8 @@ if start and query:
         st.success(f"✅ Додано {new_count} нових сайтів до вкладки 'Пошуки'.")
         
         # --------------------- GPT-Аналіз нових сайтів ---------------------
-openai.api_key = OPENAI_API_KEY
+client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])  # Використовуємо нову модель
+
 st.header("🤖 GPT-Аналіз нових сайтів")
 
 num_to_analyze = st.slider("Скільки записів аналізувати за раз", min_value=1, max_value=50, value=10)
@@ -95,7 +96,7 @@ if st.button("Аналізувати нові записи GPT"):
 
         records = search_sheet.get_all_records()
         rows_to_analyze = []
-        for idx, row in enumerate(records, start=2):  # з другого рядка
+        for idx, row in enumerate(records, start=2):
             gpt_field = str(row.get("GPT-відповідь", "")).strip().lower()
             if not gpt_field or gpt_field in ["-", "очікує"]:
                 rows_to_analyze.append((idx, row))
@@ -141,7 +142,7 @@ if st.button("Аналізувати нові записи GPT"):
                 Висновок: (одне речення)
                 """
 
-                response = openai.ChatCompletion.create(
+                response = client.chat.completions.create(
                     model="gpt-4o",
                     messages=[{"role": "user", "content": prompt}]
                 )
@@ -177,6 +178,5 @@ if st.button("Аналізувати нові записи GPT"):
                 st.warning(f"Не вдалося оновити статус для '{title}': {update_error}")
 
         st.success(f"✅ GPT-аналіз виконано для {len(rows_to_analyze)} записів.")
-
 
 
