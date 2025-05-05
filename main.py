@@ -77,10 +77,7 @@ if start and query:
         st.success(f"✅ Додано {new_count} нових сайтів до вкладки 'Пошуки'.")
         
         # --------------------- GPT-Аналіз нових сайтів ---------------------
-import openai
-from bs4 import BeautifulSoup
-
-client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 st.header("🤖 GPT-Аналіз нових сайтів")
 
