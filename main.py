@@ -130,7 +130,7 @@ if st.button("Аналізувати нові записи GPT"):
                 break
 
             title = row.get("Назва", "")
-            site = row.get("Сайт", "").strip().lower()
+            site = simplify_url(row.get("Сайт", "").strip().lower())
             keywords = row.get("Ключові слова", "")
             page = row.get("Сторінка", "")
             date = row.get("Дата", "")
