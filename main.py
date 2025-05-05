@@ -150,8 +150,7 @@ if st.button("Аналізувати нові записи GPT"):
             analysis_sheet.append_row([title, site, keywords, gpt_result, page, date, status], value_input_option="USER_ENTERED")
 
             # Оновлюємо у вкладці 'Пошуки' поле GPT-відповіді
-            search_sheet.update_cell(idx, 6, gpt_result)  # колонка 6 — GPT-відповідь
-            search_sheet.update_cell(idx, 7, status)       # колонка 7 — Статус
+            search_sheet.update(f"F{idx}:G{idx}", [[gpt_result, status]])
 
         st.success(f"✅ GPT-аналіз виконано для {len(rows_to_analyze)} записів.")
 
