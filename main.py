@@ -6,7 +6,6 @@ import json
 import openai
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-openai.api_key = OPENAI_API_KEY
 
 # Секрети
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
@@ -77,7 +76,7 @@ if start and query:
         st.success(f"✅ Додано {new_count} нових сайтів до вкладки 'Пошуки'.")
         
         # --------------------- GPT-Аналіз нових сайтів ---------------------
-
+openai.api_key = OPENAI_API_KEY
 st.header("🤖 GPT-Аналіз нових сайтів")
 
 num_to_analyze = st.slider("Скільки записів аналізувати за раз", min_value=1, max_value=50, value=10)
