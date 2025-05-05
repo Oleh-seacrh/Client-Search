@@ -52,7 +52,6 @@ if start and query:
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
-        # Отримуємо або створюємо вкладку "Пошуки"
         try:
             search_sheet = sh.worksheet("Пошуки")
         except:
@@ -62,6 +61,8 @@ if start and query:
         existing_links = set(search_sheet.col_values(3))
         new_count = 0
 
+        page_number = ((start_index - 1) // num_results) + 1
+
         for item in results:
             title = item.get("title", "")
             raw_link = item.get("link", "")
@@ -70,9 +71,10 @@ if start and query:
             if simplified in existing_links:
                 continue
 
-            search_sheet.append_row([query, title, simplified, start_index, st.session_state.get("current_date", "")], value_input_option="USER_ENTERED")
+            search_sheet.append_row([query, title, simplified, page_number, st.session_state.get("current_date", "")], value_input_option="USER_ENTERED")
             existing_links.add(simplified)
             new_count += 1
+
 
         st.success(f"✅ Додано {new_count} нових сайтів до вкладки 'Пошуки'.")
         
