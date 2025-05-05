@@ -49,6 +49,13 @@ if start and query:
         }
         results = requests.get("https://www.googleapis.com/customsearch/v1", params=params).json().get("items", [])
 
+        # Обчислюємо номер сторінки
+        page_number = ((start_index - 1) // num_results) + 1
+
+        # DEBUG-лог
+        st.markdown(f"### 🔍 Пошук для: **{query}**")
+        st.markdown(f"**📄 Сторінка №{page_number}** (start_index = `{start_index}`, results = `{len(results)}`)")
+
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
@@ -61,22 +68,26 @@ if start and query:
         existing_links = set(search_sheet.col_values(3))
         new_count = 0
 
-        page_number = ((start_index - 1) // num_results) + 1
-
         for item in results:
             title = item.get("title", "")
             raw_link = item.get("link", "")
             simplified = simplify_url(raw_link)
 
             if simplified in existing_links:
+                st.markdown(f"⚠️ Пропущено (вже є): `{simplified}`")
                 continue
 
-            search_sheet.append_row([query, title, simplified, page_number, st.session_state.get("current_date", "")], value_input_option="USER_ENTERED")
+            st.markdown(f"✅ Додано: **{title}** — `{simplified}`")
+
+            search_sheet.append_row(
+                [query, title, simplified, page_number, st.session_state.get("current_date", "")],
+                value_input_option="USER_ENTERED"
+            )
             existing_links.add(simplified)
             new_count += 1
 
+        st.success(f"🟢 Додано {new_count} нових сайтів на сторінці {page_number}")
 
-        st.success(f"✅ Додано {new_count} нових сайтів до вкладки 'Пошуки'.")
         
         # --------------------- GPT-Аналіз нових сайтів ---------------------
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
