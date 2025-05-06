@@ -227,7 +227,7 @@ if st.button("Аналізувати нові записи GPT"):
 st.header("📥 Завантаження назв компаній з іншої вкладки")
 
 source_tab = st.text_input("Введи назву вкладки з компаніями:")
-load_companies = st.button("Зчитати компанії та зберегти у вкладку 'компанії'")
+load_companies = st.button("Зчитати компанії та доповнити вкладку 'компанії'")
 
 if load_companies and source_tab:
     try:
@@ -236,8 +236,17 @@ if load_companies and source_tab:
         ws = sh.worksheet(source_tab)
         data = ws.col_values(1)[1:]  # Пропускаємо заголовок
 
-        raw_set = set()
+        # Отримуємо або створюємо вкладку "компанії"
+        try:
+            company_sheet = sh.worksheet("компанії")
+            existing = set(name.strip().upper() for name in company_sheet.col_values(1)[1:])
+        except:
+            company_sheet = sh.add_worksheet(title="компанії", rows="1000", cols="1")
+            company_sheet.update("A1", [["Компанії"]])
+            existing = set()
+
         log_output = []
+        new_entries = []
 
         for name in data:
             if not name:
@@ -251,28 +260,17 @@ if load_companies and source_tab:
             name = ' '.join(name.split())
             if len(name) > 2:
                 cleaned = name.upper()
-                if cleaned in raw_set:
+                if cleaned in existing or cleaned in [x[0] for x in new_entries]:
                     log_output.append(f"🔁 Пропущено повтор: {original}")
                 else:
-                    raw_set.add(cleaned)
+                    new_entries.append([cleaned])
                     log_output.append(f"➕ Додано: {cleaned}")
 
-        cleaned_names = sorted(list(raw_set))
+        if new_entries:
+            next_row = len(existing) + 2  # +2 бо заголовок + 1-based
+            company_sheet.update(f"A{next_row}:A{next_row + len(new_entries) - 1}", new_entries)
 
-        # Перезаписуємо вкладку "компанії"
-        try:
-            old_sheet = sh.worksheet("компанії")
-            sh.del_worksheet(old_sheet)
-        except:
-            pass
-
-        new_sheet = sh.add_worksheet(title="компанії", rows="1000", cols="1")
-        new_sheet.update("A1", [["Компанії"]])
-        new_sheet.update(f"A2:A{len(cleaned_names)+1}", [[name] for name in cleaned_names])
-
-        st.success(f"✅ Унікальних компаній збережено: {len(cleaned_names)}")
-        st.dataframe(cleaned_names)
-
+        st.success(f"✅ Додано нових компаній: {len(new_entries)}")
         st.markdown("### 📋 Журнал обробки:")
         for msg in log_output:
             st.markdown(msg)
