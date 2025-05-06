@@ -260,13 +260,12 @@ if load_companies and source_tab:
             pass
 
         new_sheet = sh.add_worksheet(title="компанії", rows="1000", cols="1")
-        new_sheet.append_row(["Компанії"], value_input_option="USER_ENTERED")
-        for name in cleaned_names:
-            new_sheet.append_row([name], value_input_option="USER_ENTERED")
+        new_sheet.update("A1", [["Компанії"]])  # заголовок
+        cells = [[name] for name in cleaned_names]
+        new_sheet.update(f"A2:A{len(cells)+1}", cells)
 
         st.success(f"✅ Знайдено та збережено {len(cleaned_names)} унікальних назв у вкладку 'компанії'.")
         st.dataframe(cleaned_names)
 
     except Exception as e:
         st.error(f"❌ Помилка: {e}")
-
