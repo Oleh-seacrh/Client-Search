@@ -342,8 +342,5 @@ if start_search:
         st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
 
     except Exception as e:
-        st.error(f"❌ Загальна помилка: {e}")
-
-    except Exception as e:
         st.error(f"❌ Помилка: {e}")
 
