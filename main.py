@@ -234,25 +234,32 @@ if load_companies and source_tab:
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
         ws = sh.worksheet(source_tab)
-        data = ws.col_values(1)[1:]  # Пропускаємо заголовок першого рядка
+        data = ws.col_values(1)[1:]  # Пропускаємо заголовок
 
-        cleaned_names = set()
+        raw_set = set()
+        log_output = []
 
         for name in data:
             if not name:
                 continue
+            original = name
             name = name.strip().lower()
             for prefix in ["фоп", "тов", "пп"]:
                 if name.startswith(prefix):
                     name = name[len(prefix):].strip()
             name = name.replace("«", "").replace("»", "").replace("\"", "")
-            name = ' '.join(name.split())  # видаляємо зайві пробіли
+            name = ' '.join(name.split())
             if len(name) > 2:
-                cleaned_names.add(name.upper())
+                cleaned = name.upper()
+                if cleaned in raw_set:
+                    log_output.append(f"🔁 Пропущено повтор: {original}")
+                else:
+                    raw_set.add(cleaned)
+                    log_output.append(f"➕ Додано: {cleaned}")
 
-        cleaned_names = sorted(list(cleaned_names))
+        cleaned_names = sorted(list(raw_set))
 
-        # Перезаписуємо вкладку "компанії", якщо існує
+        # Перезаписуємо вкладку "компанії"
         try:
             old_sheet = sh.worksheet("компанії")
             sh.del_worksheet(old_sheet)
@@ -260,12 +267,16 @@ if load_companies and source_tab:
             pass
 
         new_sheet = sh.add_worksheet(title="компанії", rows="1000", cols="1")
-        new_sheet.update("A1", [["Компанії"]])  # заголовок
-        cells = [[name] for name in cleaned_names]
-        new_sheet.update(f"A2:A{len(cells)+1}", cells)
+        new_sheet.update("A1", [["Компанії"]])
+        new_sheet.update(f"A2:A{len(cleaned_names)+1}", [[name] for name in cleaned_names])
 
-        st.success(f"✅ Знайдено та збережено {len(cleaned_names)} унікальних назв у вкладку 'компанії'.")
+        st.success(f"✅ Унікальних компаній збережено: {len(cleaned_names)}")
         st.dataframe(cleaned_names)
+
+        st.markdown("### 📋 Журнал обробки:")
+        for msg in log_output:
+            st.markdown(msg)
 
     except Exception as e:
         st.error(f"❌ Помилка: {e}")
+
