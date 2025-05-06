@@ -222,3 +222,51 @@ if st.button("Аналізувати нові записи GPT"):
             analyzed_count += 1
 
         st.success(f"✅ GPT-аналіз виконано для {analyzed_count} нових записів.")
+
+# --------------------- Завантаження назв компаній з вкладки ---------------------
+st.header("📥 Завантаження назв компаній з іншої вкладки")
+
+source_tab = st.text_input("Введи назву вкладки з компаніями:")
+load_companies = st.button("Зчитати компанії та зберегти у вкладку 'компанії'")
+
+if load_companies and source_tab:
+    try:
+        gc = get_gsheet_client()
+        sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
+        ws = sh.worksheet(source_tab)
+        data = ws.col_values(1)[1:]  # Пропускаємо заголовок першого рядка
+
+        cleaned_names = set()
+
+        for name in data:
+            if not name:
+                continue
+            name = name.strip().lower()
+            for prefix in ["фоп", "тов", "пп"]:
+                if name.startswith(prefix):
+                    name = name[len(prefix):].strip()
+            name = name.replace("«", "").replace("»", "").replace("\"", "")
+            name = ' '.join(name.split())  # видаляємо зайві пробіли
+            if len(name) > 2:
+                cleaned_names.add(name.upper())
+
+        cleaned_names = sorted(list(cleaned_names))
+
+        # Перезаписуємо вкладку "компанії", якщо існує
+        try:
+            old_sheet = sh.worksheet("компанії")
+            sh.del_worksheet(old_sheet)
+        except:
+            pass
+
+        new_sheet = sh.add_worksheet(title="компанії", rows="1000", cols="1")
+        new_sheet.append_row(["Компанії"], value_input_option="USER_ENTERED")
+        for name in cleaned_names:
+            new_sheet.append_row([name], value_input_option="USER_ENTERED")
+
+        st.success(f"✅ Знайдено та збережено {len(cleaned_names)} унікальних назв у вкладку 'компанії'.")
+        st.dataframe(cleaned_names)
+
+    except Exception as e:
+        st.error(f"❌ Помилка: {e}")
+
