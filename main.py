@@ -282,43 +282,8 @@ if load_companies and source_tab:
         # --------------------- Пошук сайтів за назвами з вкладки "компанії" ---------------------
 st.header("🌐 Пошук сайтів за назвами компаній")
 
-max_to_check = st.selectbox("Скільки компаній обробити за раз:", options=list(range(1, 101)), index=0)
+max_to_check = st.selectbox("Скільки компаній обробити за раз:", options=[1, 5, 10, 20, 50], index=0)
 start_search = st.button("🔍 Почати пошук сайтів")
-
-# GPT-клієнт
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
-
-# Функція для перевірки сайту через GPT
-def filter_with_gpt(company_name, results):
-    for item in results[:5]:
-        title = item.get("title", "")
-        link = item.get("link", "")
-        simplified = simplify_url(link)
-        text = get_page_text(simplified)
-
-        prompt = f"""
-        Тобі потрібно визначити, чи знайдений сайт належить саме цій компанії.
-
-        Назва компанії з таблиці: "{company_name}"
-        Назва сторінки з Google: "{title}"
-        URL: {simplified}
-        Вміст сторінки (обрізано): {text}
-
-        Якщо це той самий сайт цієї компанії — напиши "Так", інакше "Ні".
-        """
-
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            content = response.choices[0].message.content.strip()
-            if content.lower().startswith("так"):
-                return title, simplified
-        except Exception as e:
-            st.warning(f"GPT помилка при перевірці сайту: {e}")
-
-    return None, None
 
 if start_search:
     try:
@@ -326,11 +291,11 @@ if start_search:
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
         company_sheet = sh.worksheet("компанії")
-        company_names = [c.strip().upper() for c in company_sheet.col_values(1)[1:] if c.strip()]
+        company_names = [c.strip() for c in company_sheet.col_values(1)[1:] if c.strip()]
 
         try:
             results_sheet = sh.worksheet("результати")
-            processed_names = set(name.strip().upper() for name in results_sheet.col_values(1)[1:] if name.strip())
+            processed_names = set(name.strip() for name in results_sheet.col_values(1)[1:] if name.strip())
         except:
             results_sheet = sh.add_worksheet(title="результати", rows="1000", cols="5")
             results_sheet.append_row(["Компанія", "Сайт", "Назва з Google", "Сторінка", "Дата"], value_input_option="USER_ENTERED")
@@ -340,36 +305,74 @@ if start_search:
         st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
 
         num_checked = 0
-
         for name in to_process:
-            params = {
-                "key": st.secrets["GOOGLE_API_KEY"],
-                "cx": st.secrets["CSE_ID"],
-                "q": name,
-                "num": 10
-            }
-            try:
-                resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
-                results = resp.json().get("items", [])
+            debug_log = []
+            found = False
 
-                gpt_title, gpt_site = filter_with_gpt(name, results)
-                today = pd.Timestamp.now().strftime("%Y-%m-%d")
+            for attempt in range(1, 6):  # максимум 5 спроб
+                params = {
+                    "key": st.secrets["GOOGLE_API_KEY"],
+                    "cx": st.secrets["CSE_ID"],
+                    "q": name,
+                    "num": 10
+                }
+                try:
+                    resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
+                    items = resp.json().get("items", [])
 
-                if gpt_site:
-                    results_sheet.append_row([name, gpt_site, gpt_title, "1", today], value_input_option="USER_ENTERED")
-                    st.markdown(f"✅ **{name}** → `{gpt_site}` (GPT підтвердив)")
-                else:
-                    st.markdown(f"⚠️ **{name}** — сайт не підтверджено GPT")
+                    for item in items:
+                        title = item.get("title", "")
+                        snippet = item.get("snippet", "")
+                        link = item.get("link", "")
+                        simplified = simplify_url(link)
 
-                num_checked += 1
-                if num_checked >= max_to_check:
-                    st.info("⏸️ Досягнуто ліміт перевірок за раз.")
+                        combined_text = f"{title} {snippet}".lower()
+                        debug_log.append(f"🔗 **{title}** — `{simplified}`")
+
+                        # GPT-перевірка відповідності
+                        page_text = get_page_text(simplified)
+                        gpt_prompt = f"""
+                        Назва компанії: {name}
+                        Сайт: {simplified}
+                        Контент сайту (фрагмент): {page_text}
+
+                        Чи збігається сайт з компанією? Відповідь тільки: Так або Ні.
+                        """
+                        try:
+                            response = client.chat.completions.create(
+                                model="gpt-4o",
+                                messages=[{"role": "user", "content": gpt_prompt}]
+                            )
+                            gpt_answer = response.choices[0].message.content.strip()
+                        except Exception as gpt_err:
+                            gpt_answer = f"GPT error: {gpt_err}"
+
+                        if "так" in gpt_answer.lower():
+                            today = pd.Timestamp.now().strftime("%Y-%m-%d")
+                            results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
+                            st.markdown(f"✅ **{name}** → `{simplified}`")
+                            found = True
+                            break
+
+                    if found:
+                        break
+
+                except Exception as e:
+                    debug_log.append(f"❌ Google API error: {e}")
                     break
 
-            except Exception as e:
-                st.warning(f"❌ Помилка при обробці {name}: {e}")
+            if not found:
+                st.markdown(f"⚠️ **{name}** — сайт не підтверджено GPT")
+                with st.expander(f"📜 Результати пошуку Google для: {name}"):
+                    for line in debug_log:
+                        st.markdown(line)
+
+            num_checked += 1
+            if num_checked >= max_to_check:
+                st.info("⏸️ Досягнуто ліміт перевірок за раз.")
+                break
 
         st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
-
     except Exception as e:
         st.error(f"❌ Загальна помилка: {e}")
+
