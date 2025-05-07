@@ -282,7 +282,7 @@ if load_companies and source_tab:
         # --------------------- Пошук сайтів за назвами з вкладки "компанії" ---------------------
 st.header("🌐 Пошук сайтів за назвами компаній")
 
-num_to_check = st.slider("Скільки компаній обробити за раз", min_value=1, max_value=100, value=20)
+max_to_check = st.number_input("Скільки компаній обробити за раз:", min_value=1, max_value=1000, value=20, step=1)
 start_search = st.button("🔍 Почати пошук сайтів")
 
 if start_search:
@@ -304,11 +304,11 @@ if start_search:
             processed_names = set()
 
         to_process = [name for name in company_names if name not in processed_names]
-
         st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
 
         num_checked = 0
-                for name in to_process:
+
+        for name in to_process:
             params = {
                 "key": st.secrets["GOOGLE_API_KEY"],
                 "cx": st.secrets["CSE_ID"],
@@ -320,14 +320,13 @@ if start_search:
                 results = resp.json().get("items", [])
 
                 found = False
-                debug_log = []  # Збір логів
+                debug_log = []
 
                 for item in results:
                     title = item.get("title", "")
                     snippet = item.get("snippet", "")
                     link = item.get("link", "")
                     combined_text = (title + " " + snippet).lower()
-
                     debug_log.append(f"🔍 `{title}` — `{link}`")
 
                     if name.lower() in combined_text:
@@ -353,6 +352,6 @@ if start_search:
                 st.warning(f"❌ Помилка при обробці {name}: {e}")
 
         st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
+
     except Exception as e:
         st.error(f"❌ Загальна помилка: {e}")
-
