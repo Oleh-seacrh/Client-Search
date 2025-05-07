@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 import json
 from bs4 import BeautifulSoup
 import openai
+import unicodedata
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
