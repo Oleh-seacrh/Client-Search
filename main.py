@@ -277,3 +277,72 @@ if load_companies and source_tab:
 
     except Exception as e:
         st.error(f"❌ Помилка: {e}")
+        # --------------------- Пошук сайтів за назвами з вкладки "компанії" ---------------------
+st.header("🌐 Пошук сайтів за назвами компаній")
+
+start_search = st.button("🔍 Почати пошук сайтів")
+
+if start_search:
+    try:
+        gc = get_gsheet_client()
+        sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
+
+        # Отримуємо назви з вкладки "компанії"
+        company_sheet = sh.worksheet("компанії")
+        company_names = [c.strip().upper() for c in company_sheet.col_values(1)[1:] if c.strip()]
+
+        # Отримуємо вже опрацьовані з вкладки "результати"
+        try:
+            results_sheet = sh.worksheet("результати")
+            processed_names = set(name.strip().upper() for name in results_sheet.col_values(1)[1:] if name.strip())
+        except:
+            results_sheet = sh.add_worksheet(title="результати", rows="1000", cols="5")
+            results_sheet.append_row(["Компанія", "Сайт", "Назва з Google", "Сторінка", "Дата"], value_input_option="USER_ENTERED")
+            processed_names = set()
+
+        to_process = [name for name in company_names if name not in processed_names]
+
+        st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
+        num_checked = 0
+
+        for name in to_process:
+            params = {
+                "key": st.secrets["GOOGLE_API_KEY"],
+                "cx": st.secrets["CSE_ID"],
+                "q": name,
+                "num": 10
+            }
+            try:
+                resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
+                results = resp.json().get("items", [])
+
+                found = False
+                for item in results:
+                    title = item.get("title", "")
+                    snippet = item.get("snippet", "")
+                    link = item.get("link", "")
+
+                    combined_text = (title + " " + snippet).lower()
+                    if name.lower() in combined_text:
+                        simplified = simplify_url(link)
+                        today = pd.Timestamp.now().strftime("%Y-%m-%d")
+                        results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
+                        st.markdown(f"✅ **{name}** → `{simplified}`")
+                        found = True
+                        break
+
+                if not found:
+                    st.markdown(f"⚠️ **{name}** — сайт не знайдено")
+
+                num_checked += 1
+                if num_checked >= 20:
+                    st.info("⏸️ Обмеження: оброблено 20 компаній за раз. Перезапустіть для продовження.")
+                    break
+
+            except Exception as e:
+                st.warning(f"❌ Помилка при обробці {name}: {e}")
+
+        st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
+
+    except Exception as e:
+        st.error(f"❌ Загальна помилка: {e}")
