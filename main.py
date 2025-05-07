@@ -280,9 +280,10 @@ if load_companies and source_tab:
     except Exception as e:
         st.error(f"❌ Помилка: {e}")
         # --------------------- Пошук сайтів за назвами з вкладки "компанії" ---------------------
+
 st.header("🌐 Пошук сайтів за назвами компаній")
 
-max_to_check = st.selectbox("Скільки компаній обробити за раз:", options=[1, 5, 10, 20, 50], index=0)
+max_to_check = st.selectbox("Скільки компаній обробити за раз:", options=list(range(1, 21)), index=0)
 start_search = st.button("🔍 Почати пошук сайтів")
 
 if start_search:
@@ -291,54 +292,49 @@ if start_search:
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
         company_sheet = sh.worksheet("компанії")
-        company_names = [c.strip() for c in company_sheet.col_values(1)[1:] if c.strip()]
+        company_names = [c.strip().upper() for c in company_sheet.col_values(1)[1:] if c.strip()]
 
         try:
             results_sheet = sh.worksheet("результати")
-            processed_names = set(name.strip() for name in results_sheet.col_values(1)[1:] if name.strip())
+            processed_names = set(name.strip().upper() for name in results_sheet.col_values(1)[1:] if name.strip())
         except:
             results_sheet = sh.add_worksheet(title="результати", rows="1000", cols="5")
             results_sheet.append_row(["Компанія", "Сайт", "Назва з Google", "Сторінка", "Дата"], value_input_option="USER_ENTERED")
             processed_names = set()
 
         to_process = [name for name in company_names if name not in processed_names]
-        st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
 
+        st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
         num_checked = 0
+
         for name in to_process:
             debug_log = []
-            found = False
-
             params = {
                 "key": st.secrets["GOOGLE_API_KEY"],
                 "cx": st.secrets["CSE_ID"],
                 "q": name,
                 "num": 10
             }
-
             try:
                 resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
                 items = resp.json().get("items", [])
 
-                for idx, item in enumerate(items[:5]):
+                found = False
+                for item in items[:5]:
                     title = item.get("title", "")
                     snippet = item.get("snippet", "")
                     link = item.get("link", "")
+                    combined_text = (title + " " + snippet).lower()
+
                     simplified = simplify_url(link)
-                    combined_text = f"{title} {snippet}".strip()
-
-                    debug_log.append(f"🔗 **{title}** — `{simplified}`")
-
-                    # GPT-перевірка
                     page_text = get_page_text(simplified)
                     gpt_prompt = f"""
-                    Назва компанії: {name}
-                    Сайт: {simplified}
-                    Контент сайту: {page_text}
+Назва компанії: {name}
+Сайт: {simplified}
+Контент сайту: {page_text}
 
-                    Чи збігається сайт із компанією? Відповідь: Так або Ні.
-                    """
-
+Чи збігається сайт із компанією? Відповідь: Так або Ні.
+"""
                     try:
                         response = client.chat.completions.create(
                             model="gpt-4o",
@@ -347,6 +343,8 @@ if start_search:
                         gpt_answer = response.choices[0].message.content.strip()
                     except Exception as gpt_err:
                         gpt_answer = f"GPT error: {gpt_err}"
+
+                    debug_log.append(f"🔗 **{title}** — `{simplified}`  \nGPT: _{gpt_answer}_")
 
                     if "так" in gpt_answer.lower():
                         today = pd.Timestamp.now().strftime("%Y-%m-%d")
@@ -357,7 +355,7 @@ if start_search:
 
                 if not found:
                     st.markdown(f"⚠️ **{name}** — сайт не підтверджено GPT")
-                    with st.expander(f"📜 Перелік сайтів, які знайшов Google для {name}"):
+                    with st.expander(f"📄 Перевірено сайти для: {name}"):
                         for entry in debug_log:
                             st.markdown(entry)
 
@@ -373,4 +371,3 @@ if start_search:
 
     except Exception as e:
         st.error(f"❌ Загальна помилка: {e}")
-
