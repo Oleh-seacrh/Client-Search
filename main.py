@@ -313,18 +313,28 @@ if start_search:
                 "q": name,
                 "num": 10
             }
+
             try:
                 resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
                 results = resp.json().get("items", [])
 
                 found = False
+
                 for item in results:
                     title = item.get("title", "")
                     snippet = item.get("snippet", "")
                     link = item.get("link", "")
 
-                    combined_text = (title + " " + snippet).lower()
-                    if name.lower() in combined_text:
+                    def clean_text(text):
+                        import unicodedata
+                        text = unicodedata.normalize('NFKD', text)
+                        text = re.sub(r"[^\w\s]", "", text.lower())
+                        return set(text.split())
+
+                    name_words = clean_text(name)
+                    combined_words = clean_text(title + " " + snippet)
+
+                    if len(name_words.intersection(combined_words)) >= 2:
                         simplified = simplify_url(link)
                         today = pd.Timestamp.now().strftime("%Y-%m-%d")
                         results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
@@ -342,6 +352,11 @@ if start_search:
 
             except Exception as e:
                 st.warning(f"❌ Помилка при обробці {name}: {e}")
+
+        st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
+
+    except Exception as e:
+        st.error(f"❌ Загальна помилка: {e}")
 
         st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
 
