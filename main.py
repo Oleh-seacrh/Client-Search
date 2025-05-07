@@ -309,70 +309,68 @@ if start_search:
             debug_log = []
             found = False
 
-            for attempt in range(1, 6):  # максимум 5 спроб
-                params = {
-                    "key": st.secrets["GOOGLE_API_KEY"],
-                    "cx": st.secrets["CSE_ID"],
-                    "q": name,
-                    "num": 10
-                }
-                try:
-                    resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
-                    items = resp.json().get("items", [])
+            params = {
+                "key": st.secrets["GOOGLE_API_KEY"],
+                "cx": st.secrets["CSE_ID"],
+                "q": name,
+                "num": 10
+            }
 
-                    for item in items:
-                        title = item.get("title", "")
-                        snippet = item.get("snippet", "")
-                        link = item.get("link", "")
-                        simplified = simplify_url(link)
+            try:
+                resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
+                items = resp.json().get("items", [])
 
-                        combined_text = f"{title} {snippet}".lower()
-                        debug_log.append(f"🔗 **{title}** — `{simplified}`")
+                for idx, item in enumerate(items[:5]):
+                    title = item.get("title", "")
+                    snippet = item.get("snippet", "")
+                    link = item.get("link", "")
+                    simplified = simplify_url(link)
+                    combined_text = f"{title} {snippet}".strip()
 
-                        # GPT-перевірка відповідності
-                        page_text = get_page_text(simplified)
-                        gpt_prompt = f"""
-                        Назва компанії: {name}
-                        Сайт: {simplified}
-                        Контент сайту (фрагмент): {page_text}
+                    debug_log.append(f"🔗 **{title}** — `{simplified}`")
 
-                        Чи збігається сайт з компанією? Відповідь тільки: Так або Ні.
-                        """
-                        try:
-                            response = client.chat.completions.create(
-                                model="gpt-4o",
-                                messages=[{"role": "user", "content": gpt_prompt}]
-                            )
-                            gpt_answer = response.choices[0].message.content.strip()
-                        except Exception as gpt_err:
-                            gpt_answer = f"GPT error: {gpt_err}"
+                    # GPT-перевірка
+                    page_text = get_page_text(simplified)
+                    gpt_prompt = f"""
+                    Назва компанії: {name}
+                    Сайт: {simplified}
+                    Контент сайту: {page_text}
 
-                        if "так" in gpt_answer.lower():
-                            today = pd.Timestamp.now().strftime("%Y-%m-%d")
-                            results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
-                            st.markdown(f"✅ **{name}** → `{simplified}`")
-                            found = True
-                            break
+                    Чи збігається сайт із компанією? Відповідь: Так або Ні.
+                    """
 
-                    if found:
+                    try:
+                        response = client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[{"role": "user", "content": gpt_prompt}]
+                        )
+                        gpt_answer = response.choices[0].message.content.strip()
+                    except Exception as gpt_err:
+                        gpt_answer = f"GPT error: {gpt_err}"
+
+                    if "так" in gpt_answer.lower():
+                        today = pd.Timestamp.now().strftime("%Y-%m-%d")
+                        results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
+                        st.markdown(f"✅ **{name}** → `{simplified}`")
+                        found = True
                         break
 
-                except Exception as e:
-                    debug_log.append(f"❌ Google API error: {e}")
+                if not found:
+                    st.markdown(f"⚠️ **{name}** — сайт не підтверджено GPT")
+                    with st.expander(f"📜 Перелік сайтів, які знайшов Google для {name}"):
+                        for entry in debug_log:
+                            st.markdown(entry)
+
+                num_checked += 1
+                if num_checked >= max_to_check:
+                    st.info("⏸️ Досягнуто ліміт перевірок за раз.")
                     break
 
-            if not found:
-                st.markdown(f"⚠️ **{name}** — сайт не підтверджено GPT")
-                with st.expander(f"📜 Результати пошуку Google для: {name}"):
-                    for line in debug_log:
-                        st.markdown(line)
-
-            num_checked += 1
-            if num_checked >= max_to_check:
-                st.info("⏸️ Досягнуто ліміт перевірок за раз.")
-                break
+            except Exception as e:
+                st.warning(f"❌ Помилка при обробці {name}: {e}")
 
         st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
+
     except Exception as e:
         st.error(f"❌ Загальна помилка: {e}")
 
