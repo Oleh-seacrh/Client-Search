@@ -282,6 +282,7 @@ if load_companies and source_tab:
         # --------------------- Пошук сайтів за назвами з вкладки "компанії" ---------------------
 st.header("🌐 Пошук сайтів за назвами компаній")
 
+num_to_check = st.slider("Скільки компаній обробити за раз", min_value=1, max_value=100, value=20)
 start_search = st.button("🔍 Почати пошук сайтів")
 
 if start_search:
@@ -305,8 +306,8 @@ if start_search:
         to_process = [name for name in company_names if name not in processed_names]
 
         st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
-        num_checked = 0
 
+        num_checked = 0
         for name in to_process:
             params = {
                 "key": st.secrets["GOOGLE_API_KEY"],
@@ -314,28 +315,18 @@ if start_search:
                 "q": name,
                 "num": 10
             }
-
             try:
                 resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
                 results = resp.json().get("items", [])
 
                 found = False
-
                 for item in results:
                     title = item.get("title", "")
                     snippet = item.get("snippet", "")
                     link = item.get("link", "")
 
-                    def clean_text(text):
-                        import unicodedata
-                        text = unicodedata.normalize('NFKD', text)
-                        text = re.sub(r"[^\w\s]", "", text.lower())
-                        return set(text.split())
-
-                    name_words = clean_text(name)
-                    combined_words = clean_text(title + " " + snippet)
-
-                    if len(name_words.intersection(combined_words)) >= 2:
+                    combined_text = (title + " " + snippet).lower()
+                    if name.lower() in combined_text:
                         simplified = simplify_url(link)
                         today = pd.Timestamp.now().strftime("%Y-%m-%d")
                         results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
@@ -347,19 +338,14 @@ if start_search:
                     st.markdown(f"⚠️ **{name}** — сайт не знайдено")
 
                 num_checked += 1
-                if num_checked >= 20:
-                    st.info("⏸️ Обмеження: оброблено 20 компаній за раз. Перезапустіть для продовження.")
+                if num_checked >= num_to_check:
+                    st.info(f"⏸️ Обмеження: оброблено {num_to_check} компаній. Перезапустіть для продовження.")
                     break
 
             except Exception as e:
-                st.warning(f"❌ Помилка при обробці {name}: {e}")
+                st.error(f"❌ Помилка при обробці {name}: {e}")
 
         st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
-
     except Exception as e:
         st.error(f"❌ Загальна помилка: {e}")
 
-        st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
-
-    except Exception as e:
-        st.error(f"❌ Загальна помилка: {e}")
