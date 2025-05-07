@@ -328,13 +328,18 @@ if start_search:
 
                     simplified = simplify_url(link)
                     page_text = get_page_text(simplified)
+
                     gpt_prompt = f"""
+Ти — аналітик. Визначи, чи сайт належить компанії.
+
 Назва компанії: {name}
 Сайт: {simplified}
-Контент сайту: {page_text}
+Опис сайту: {page_text}
 
-Чи збігається сайт із компанією? Відповідь: Так або Ні.
+Відповідай коротко:
+Чи належить сайт цій компанії? Відповідь: Так або Ні.
 """
+
                     try:
                         response = client.chat.completions.create(
                             model="gpt-4o",
@@ -344,7 +349,7 @@ if start_search:
                     except Exception as gpt_err:
                         gpt_answer = f"GPT error: {gpt_err}"
 
-                    debug_log.append(f"🔗 **{title}** — `{simplified}`  \nGPT: _{gpt_answer}_")
+                    debug_log.append(f"🔗 **{title}** — `{simplified}`\nGPT: _{gpt_answer}_")
 
                     if "так" in gpt_answer.lower():
                         today = pd.Timestamp.now().strftime("%Y-%m-%d")
