@@ -308,7 +308,7 @@ if start_search:
         st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
 
         num_checked = 0
-        for name in to_process:
+                for name in to_process:
             params = {
                 "key": st.secrets["GOOGLE_API_KEY"],
                 "cx": st.secrets["CSE_ID"],
@@ -320,12 +320,16 @@ if start_search:
                 results = resp.json().get("items", [])
 
                 found = False
+                debug_log = []  # Збір логів
+
                 for item in results:
                     title = item.get("title", "")
                     snippet = item.get("snippet", "")
                     link = item.get("link", "")
-
                     combined_text = (title + " " + snippet).lower()
+
+                    debug_log.append(f"🔍 `{title}` — `{link}`")
+
                     if name.lower() in combined_text:
                         simplified = simplify_url(link)
                         today = pd.Timestamp.now().strftime("%Y-%m-%d")
@@ -336,14 +340,17 @@ if start_search:
 
                 if not found:
                     st.markdown(f"⚠️ **{name}** — сайт не знайдено")
+                    with st.expander(f"🔎 Перевірити, що знайшов Google для: {name}"):
+                        for entry in debug_log:
+                            st.markdown(entry)
 
                 num_checked += 1
-                if num_checked >= num_to_check:
-                    st.info(f"⏸️ Обмеження: оброблено {num_to_check} компаній. Перезапустіть для продовження.")
+                if num_checked >= max_to_check:
+                    st.info("⏸️ Досягнуто ліміт перевірок за раз.")
                     break
 
             except Exception as e:
-                st.error(f"❌ Помилка при обробці {name}: {e}")
+                st.warning(f"❌ Помилка при обробці {name}: {e}")
 
         st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
     except Exception as e:
