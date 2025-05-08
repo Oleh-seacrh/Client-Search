@@ -354,4 +354,21 @@ if start_search:
 
                     if "так" in gpt_answer.lower():
                         company_sheet.update_cell(row_index, 2, "Знайдено")
-                        s
+                        st.markdown(f"✅ **{name}** → `{simplified}`")
+                        found = True
+                        break
+
+                if not found:
+                    company_sheet.update_cell(row_index, 2, "Не знайдено")
+                    st.markdown(f"⚠️ **{name}** — сайт не підтверджено GPT")
+                    with st.expander(f"📄 Перевірено сайти для: {name}"):
+                        for entry in debug_log:
+                            st.markdown(entry)
+
+            except Exception as e:
+                st.warning(f"❌ Помилка при обробці {name}: {e}")
+
+        st.success(f"🏁 Пошук завершено. Оброблено: {len(to_process)} компаній.")
+
+    except Exception as e:
+        st.error(f"❌ Загальна помилка: {e}")
