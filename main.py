@@ -279,22 +279,31 @@ if load_companies and source_tab:
 
     except Exception as e:
         st.error(f"❌ Помилка: {e}")
-        # --------------------- Пошук сайтів за назвами з таблиці "компанії" ---------------------
+        # --------------------- Пошук сайтів за назвами з вкладки "компанії" ---------------------
 
-st.header("📄 Пошук сайтів за назвами компаній з таблиці")
+st.header("🌐 Пошук сайтів за назвами компаній")
 
-max_from_table = st.selectbox("Скільки компаній обробити за раз (таблиця)?", options=list(range(1, 21)), index=0, key="table_limit")
-start_search_table = st.button("📥 Запустити пошук із таблиці")
+max_to_check = st.selectbox("Скільки компаній обробити за раз:", options=list(range(1, 21)), index=0)
+start_search = st.button("🔍 Почати пошук сайтів")
 
-if start_search_table:
+if start_search:
     try:
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
-        # Отримуємо компанії з таблиці
+        # Завантажуємо вкладку з компаніями
         company_sheet = sh.worksheet("компанії")
-        company_names = [c.strip() for c in company_sheet.col_values(1)[1:] if c.strip()]
+        headers = company_sheet.row_values(1)
 
+        # Додаємо колонку "Статус", якщо її немає
+        if len(headers) < 2 or headers[1].strip() == "":
+            company_sheet.update("B1", "Статус")
+            st.success("✅ Додано колонку 'Статус' у вкладку 'компанії'")
+
+        company_names = company_sheet.col_values(1)[1:]
+        statuses = company_sheet.col_values(2)[1:] if len(headers) >= 2 else []
+
+        # Завантажуємо або створюємо вкладку "результати"
         try:
             results_sheet = sh.worksheet("результати")
             processed_names = set(name.strip().upper() for name in results_sheet.col_values(1)[1:] if name.strip())
@@ -303,16 +312,18 @@ if start_search_table:
             results_sheet.append_row(["Компанія", "Сайт", "Назва з Google", "Сторінка", "Дата"], value_input_option="USER_ENTERED")
             processed_names = set()
 
-        # Визначаємо вже помічені статуси у "компанії"
-        status_col = company_sheet.col_values(2) if len(company_sheet.row_values(1)) > 1 else []
-        status_map = {company_sheet.cell(i + 2, 1).value.strip().upper(): (i + 2) for i in range(len(status_col)) if i + 2 <= len(status_col)}
-
-        to_process = [name for name in company_names if name.upper() not in processed_names]
+        # Фільтруємо компанії
+        to_process = []
+        for idx, name in enumerate(company_names):
+            if idx < len(statuses) and statuses[idx].strip().lower() in ["знайдено", "не знайдено"]:
+                continue
+            if name.strip().upper() not in processed_names:
+                to_process.append((idx + 2, name.strip()))  # +2 бо заголовок + 1-based індексація
 
         st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
         num_checked = 0
 
-        for name in to_process:
+        for row_num, name in to_process:
             debug_log = []
             params = {
                 "key": st.secrets["GOOGLE_API_KEY"],
@@ -329,19 +340,21 @@ if start_search_table:
                     title = item.get("title", "")
                     snippet = item.get("snippet", "")
                     link = item.get("link", "")
+                    combined_text = (title + " " + snippet).lower()
+
                     simplified = simplify_url(link)
                     page_text = get_page_text(simplified)
 
                     gpt_prompt = f"""
-                    Ти — аналітик. Визначи, чи сайт належить компанії.
+Ти — аналітик. Визначи, чи сайт належить компанії.
 
-                    Назва компанії: {name}
-                    Сайт: {simplified}
-                    Опис сайту: {page_text}
+Назва компанії: {name}
+Сайт: {simplified}
+Опис сайту: {page_text}
 
-                    Відповідай коротко:
-                    Чи належить сайт цій компанії? Відповідь: Так або Ні.
-                    """
+Відповідай коротко:
+Чи належить сайт цій компанії? Відповідь: Так або Ні.
+"""
                     try:
                         response = client.chat.completions.create(
                             model="gpt-4o",
@@ -357,11 +370,8 @@ if start_search_table:
                         today = pd.Timestamp.now().strftime("%Y-%m-%d")
                         results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
                         st.markdown(f"✅ **{name}** → `{simplified}`")
+                        company_sheet.update(f"B{row_num}", "Знайдено")
                         found = True
-                        # Позначаємо "Знайдено" у вкладці "компанії"
-                        row_num = status_map.get(name.upper())
-                        if row_num:
-                            company_sheet.update_cell(row_num, 2, "Знайдено")
                         break
 
                 if not found:
@@ -369,24 +379,18 @@ if start_search_table:
                     with st.expander(f"📄 Перевірено сайти для: {name}"):
                         for entry in debug_log:
                             st.markdown(entry)
-                    # Позначаємо "Не знайдено" у вкладці "компанії"
-                    row_num = status_map.get(name.upper())
-                    if row_num:
-                        company_sheet.update_cell(row_num, 2, "Не знайдено")
+                    company_sheet.update(f"B{row_num}", "Не знайдено")
 
                 num_checked += 1
-                if num_checked >= max_from_table:
+                if num_checked >= max_to_check:
                     st.info("⏸️ Досягнуто ліміт перевірок за раз.")
                     break
 
             except Exception as e:
                 st.warning(f"❌ Помилка при обробці {name}: {e}")
+                company_sheet.update(f"B{row_num}", f"Помилка: {e}")
 
         st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
 
     except Exception as e:
         st.error(f"❌ Загальна помилка: {e}")
-
-        st.error(f"❌ Загальна помилка: {e}")
-
-
