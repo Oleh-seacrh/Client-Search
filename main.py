@@ -375,3 +375,4 @@ if start_search_table:
     except Exception as e:
         st.error(f"❌ Загальна помилка: {e}")
 
+
