@@ -279,7 +279,7 @@ if load_companies and source_tab:
 
     except Exception as e:
         st.error(f"❌ Помилка: {e}")
-        # --------------------- Пошук сайтів за назвами з вкладки "компанії" ---------------------
+       # --------------------- Пошук сайтів за назвами з вкладки "компанії" ---------------------
 
 st.header("🌐 Пошук сайтів за назвами компаній")
 
@@ -291,39 +291,28 @@ if start_search:
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
-        # Завантажуємо вкладку з компаніями
         company_sheet = sh.worksheet("компанії")
-        headers = company_sheet.row_values(1)
+        data = company_sheet.get_all_values()
+        headers = data[0]
 
         # Додаємо колонку "Статус", якщо її немає
-        if len(headers) < 2 or headers[1].strip() == "":
-            company_sheet.update("B1", "Статус")
-            st.success("✅ Додано колонку 'Статус' у вкладку 'компанії'")
+        if "Статус" not in headers:
+            company_sheet.update_cell(1, 2, "Статус")
+            headers.append("Статус")
 
-        company_names = company_sheet.col_values(1)[1:]
-        statuses = company_sheet.col_values(2)[1:] if len(headers) >= 2 else []
-
-        # Завантажуємо або створюємо вкладку "результати"
-        try:
-            results_sheet = sh.worksheet("результати")
-            processed_names = set(name.strip().upper() for name in results_sheet.col_values(1)[1:] if name.strip())
-        except:
-            results_sheet = sh.add_worksheet(title="результати", rows="1000", cols="5")
-            results_sheet.append_row(["Компанія", "Сайт", "Назва з Google", "Сторінка", "Дата"], value_input_option="USER_ENTERED")
-            processed_names = set()
-
-        # Фільтруємо компанії
+        companies = data[1:]
         to_process = []
-        for idx, name in enumerate(company_names):
-            if idx < len(statuses) and statuses[idx].strip().lower() in ["знайдено", "не знайдено"]:
-                continue
-            if name.strip().upper() not in processed_names:
-                to_process.append((idx + 2, name.strip()))  # +2 бо заголовок + 1-based індексація
+        for i, row in enumerate(companies, start=2):
+            name = row[0].strip()
+            status = row[1].strip() if len(row) > 1 else ""
+            if name and not status:
+                to_process.append((i, name))
+            if len(to_process) >= max_to_check:
+                break
 
         st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
-        num_checked = 0
 
-        for row_num, name in to_process:
+        for row_index, name in to_process:
             debug_log = []
             params = {
                 "key": st.secrets["GOOGLE_API_KEY"],
@@ -338,10 +327,7 @@ if start_search:
                 found = False
                 for item in items[:5]:
                     title = item.get("title", "")
-                    snippet = item.get("snippet", "")
                     link = item.get("link", "")
-                    combined_text = (title + " " + snippet).lower()
-
                     simplified = simplify_url(link)
                     page_text = get_page_text(simplified)
 
@@ -367,30 +353,5 @@ if start_search:
                     debug_log.append(f"🔗 **{title}** — `{simplified}`\nGPT: _{gpt_answer}_")
 
                     if "так" in gpt_answer.lower():
-                        today = pd.Timestamp.now().strftime("%Y-%m-%d")
-                        results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
-                        st.markdown(f"✅ **{name}** → `{simplified}`")
-                        company_sheet.update(f"B{row_num}", "Знайдено")
-                        found = True
-                        break
-
-                if not found:
-                    st.markdown(f"⚠️ **{name}** — сайт не підтверджено GPT")
-                    with st.expander(f"📄 Перевірено сайти для: {name}"):
-                        for entry in debug_log:
-                            st.markdown(entry)
-                    company_sheet.update(f"B{row_num}", "Не знайдено")
-
-                num_checked += 1
-                if num_checked >= max_to_check:
-                    st.info("⏸️ Досягнуто ліміт перевірок за раз.")
-                    break
-
-            except Exception as e:
-                st.warning(f"❌ Помилка при обробці {name}: {e}")
-                company_sheet.update(f"B{row_num}", f"Помилка: {e}")
-
-        st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
-
-    except Exception as e:
-        st.error(f"❌ Загальна помилка: {e}")
+                        company_sheet.update_cell(row_index, 2, "Знайдено")
+                        s
