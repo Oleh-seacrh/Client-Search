@@ -303,6 +303,10 @@ if start_search_table:
             results_sheet.append_row(["Компанія", "Сайт", "Назва з Google", "Сторінка", "Дата"], value_input_option="USER_ENTERED")
             processed_names = set()
 
+        # Визначаємо вже помічені статуси у "компанії"
+        status_col = company_sheet.col_values(2) if len(company_sheet.row_values(1)) > 1 else []
+        status_map = {company_sheet.cell(i + 2, 1).value.strip().upper(): (i + 2) for i in range(len(status_col)) if i + 2 <= len(status_col)}
+
         to_process = [name for name in company_names if name.upper() not in processed_names]
 
         st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
@@ -354,6 +358,10 @@ if start_search_table:
                         results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
                         st.markdown(f"✅ **{name}** → `{simplified}`")
                         found = True
+                        # Позначаємо "Знайдено" у вкладці "компанії"
+                        row_num = status_map.get(name.upper())
+                        if row_num:
+                            company_sheet.update_cell(row_num, 2, "Знайдено")
                         break
 
                 if not found:
@@ -361,6 +369,10 @@ if start_search_table:
                     with st.expander(f"📄 Перевірено сайти для: {name}"):
                         for entry in debug_log:
                             st.markdown(entry)
+                    # Позначаємо "Не знайдено" у вкладці "компанії"
+                    row_num = status_map.get(name.upper())
+                    if row_num:
+                        company_sheet.update_cell(row_num, 2, "Не знайдено")
 
                 num_checked += 1
                 if num_checked >= max_from_table:
@@ -373,6 +385,8 @@ if start_search_table:
         st.success(f"🏁 Пошук завершено. Оброблено: {num_checked} компаній.")
 
     except Exception as e:
+        st.error(f"❌ Загальна помилка: {e}")
+
         st.error(f"❌ Загальна помилка: {e}")
 
 
