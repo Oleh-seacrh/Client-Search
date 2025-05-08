@@ -300,6 +300,13 @@ if start_search:
             company_sheet.update_cell(1, 2, "Статус")
             headers.append("Статус")
 
+        # Готуємо вкладку "результати"
+        try:
+            results_sheet = sh.worksheet("результати")
+        except:
+            results_sheet = sh.add_worksheet(title="результати", rows="1000", cols="5")
+            results_sheet.append_row(["Компанія", "Сайт", "Назва з Google", "Сторінка", "Дата"], value_input_option="USER_ENTERED")
+
         companies = data[1:]
         to_process = []
         for i, row in enumerate(companies, start=2):
@@ -353,8 +360,13 @@ if start_search:
                     debug_log.append(f"🔗 **{title}** — `{simplified}`\nGPT: _{gpt_answer}_")
 
                     if "так" in gpt_answer.lower():
+                        today = pd.Timestamp.now().strftime("%Y-%m-%d")
                         company_sheet.update_cell(row_index, 2, "Знайдено")
                         st.markdown(f"✅ **{name}** → `{simplified}`")
+
+                        # Запис у "результати"
+                        results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
+
                         found = True
                         break
 
