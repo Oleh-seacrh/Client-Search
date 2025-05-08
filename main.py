@@ -279,20 +279,21 @@ if load_companies and source_tab:
 
     except Exception as e:
         st.error(f"❌ Помилка: {e}")
-        # --------------------- Пошук сайтів за назвами з вкладки "компанії" ---------------------
+        # --------------------- Пошук сайтів за назвами з таблиці "компанії" ---------------------
 
-st.header("🌐 Пошук сайтів за назвами компаній")
+st.header("📄 Пошук сайтів за назвами компаній з таблиці")
 
-max_to_check = st.selectbox("Скільки компаній обробити за раз:", options=list(range(1, 21)), index=0)
-start_search = st.button("🔍 Почати пошук сайтів")
+max_from_table = st.selectbox("Скільки компаній обробити за раз (таблиця)?", options=list(range(1, 21)), index=0, key="table_limit")
+start_search_table = st.button("📥 Запустити пошук із таблиці")
 
-if start_search:
+if start_search_table:
     try:
         gc = get_gsheet_client()
         sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
 
+        # Отримуємо компанії з таблиці
         company_sheet = sh.worksheet("компанії")
-        company_names = [c.strip().upper() for c in company_sheet.col_values(1)[1:] if c.strip()]
+        company_names = [c.strip() for c in company_sheet.col_values(1)[1:] if c.strip()]
 
         try:
             results_sheet = sh.worksheet("результати")
@@ -302,7 +303,7 @@ if start_search:
             results_sheet.append_row(["Компанія", "Сайт", "Назва з Google", "Сторінка", "Дата"], value_input_option="USER_ENTERED")
             processed_names = set()
 
-        to_process = [name for name in company_names if name not in processed_names]
+        to_process = [name for name in company_names if name.upper() not in processed_names]
 
         st.markdown(f"🔎 Залишилось до обробки: **{len(to_process)}** компаній")
         num_checked = 0
@@ -324,22 +325,19 @@ if start_search:
                     title = item.get("title", "")
                     snippet = item.get("snippet", "")
                     link = item.get("link", "")
-                    combined_text = (title + " " + snippet).lower()
-
                     simplified = simplify_url(link)
                     page_text = get_page_text(simplified)
 
                     gpt_prompt = f"""
-Ти — аналітик. Визначи, чи сайт належить компанії.
+                    Ти — аналітик. Визначи, чи сайт належить компанії.
 
-Назва компанії: {name}
-Сайт: {simplified}
-Опис сайту: {page_text}
+                    Назва компанії: {name}
+                    Сайт: {simplified}
+                    Опис сайту: {page_text}
 
-Відповідай коротко:
-Чи належить сайт цій компанії? Відповідь: Так або Ні.
-"""
-
+                    Відповідай коротко:
+                    Чи належить сайт цій компанії? Відповідь: Так або Ні.
+                    """
                     try:
                         response = client.chat.completions.create(
                             model="gpt-4o",
@@ -365,7 +363,7 @@ if start_search:
                             st.markdown(entry)
 
                 num_checked += 1
-                if num_checked >= max_to_check:
+                if num_checked >= max_from_table:
                     st.info("⏸️ Досягнуто ліміт перевірок за раз.")
                     break
 
@@ -376,3 +374,4 @@ if start_search:
 
     except Exception as e:
         st.error(f"❌ Загальна помилка: {e}")
+
