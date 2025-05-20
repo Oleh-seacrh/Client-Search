@@ -407,9 +407,12 @@ if analyze_now:
         # Перевіряємо/створюємо колонки
         required_cols = ["Категорія", "Перспективність"]
         for col in required_cols:
-            if col not in headers:
-                headers.append(col)
-                sheet.update_cell(1, len(headers), col)
+    if col not in headers:
+        headers.append(col)
+
+# Оновлюємо весь заголовок одним викликом — без помилок
+sheet.update('A1', [headers])
+
 
         col_count = len(headers)
         analyze_indices = []
