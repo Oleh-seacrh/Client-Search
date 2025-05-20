@@ -384,3 +384,77 @@ if start_search:
 
     except Exception as e:
         st.error(f"❌ Загальна помилка: {e}")
+        
+        # --------------------- 🧠 GPT-Аналіз сайтів з вкладки 'результати ---------------------
+st.header("🧠 GPT-Аналіз сайтів з вкладки 'результати'")
+
+analyze_now = st.button("🔍 Запустити аналіз (до 20 нових записів)")
+
+if analyze_now:
+    with st.spinner("GPT аналізує нові сайти..."):
+        gc = get_gsheet_client()
+        sh = gc.open_by_key(GSHEET_SPREADSHEET_ID)
+        try:
+            sheet = sh.worksheet("результати")
+        except:
+            st.error("❌ Вкладка 'результати' не знайдена.")
+            st.stop()
+
+        data = sheet.get_all_values()
+        headers = data[0]
+        rows = data[1:]
+
+        # Перевіряємо/створюємо колонки
+        required_cols = ["Категорія", "Перспективність"]
+        for col in required_cols:
+            if col not in headers:
+                headers.append(col)
+                sheet.update_cell(1, len(headers), col)
+
+        col_count = len(headers)
+        analyze_indices = []
+        for i, row in enumerate(rows):
+            if len(row) < col_count or row[col_count-2].strip() == "" or row[col_count-1].strip() == "":
+                analyze_indices.append(i + 2)  # +2 бо з 2-го рядка, і з 1-індексація
+            if len(analyze_indices) >= 20:
+                break
+
+        for row_num in analyze_indices:
+            row = sheet.row_values(row_num)
+            title = row[0]
+            url = row[1]
+
+            prompt = f"""
+Ти аналізуєш компанії, які можуть бути нашими клієнтами.
+
+Назва: {title}  
+Сайт: {url}
+
+1. Визнач категорію компанії: Medical, NDT або Other  
+2. Скажи, чи компанія потенційно наш клієнт (відповідь: Так або Ні, з коротким поясненням)
+
+Формат:
+Категорія: ...  
+Перспективність: ...
+"""
+
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                gpt_output = response.choices[0].message.content
+            except Exception as e:
+                gpt_output = f"Помилка: {e}"
+
+            # Витягуємо категорію та перспективність
+            category_match = re.search(r"Категорія:\s*(.*)", gpt_output)
+            verdict_match = re.search(r"Перспективність:\s*(.*)", gpt_output)
+
+            category = category_match.group(1).strip() if category_match else "-"
+            verdict = verdict_match.group(1).strip() if verdict_match else "-"
+
+            sheet.update_cell(row_num, col_count - 1, category)
+            sheet.update_cell(row_num, col_count, verdict)
+
+        st.success(f"✅ GPT проаналізував {len(analyze_indices)} нових сайтів у вкладці 'результати'.")
