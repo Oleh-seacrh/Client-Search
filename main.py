@@ -404,7 +404,7 @@ if analyze_now:
         headers = data[0]
         rows = data[1:]
 
-        # Перевіряємо наявність потрібних колонок і додаємо, якщо бракує
+       # Перевіряємо наявність потрібних колонок і додаємо, якщо бракує
 headers = sheet.row_values(1)
 required_cols = ["Категорія", "Висновок GPT"]
 
@@ -412,10 +412,8 @@ for col in required_cols:
     if col not in headers:
         headers.append(col)
 
-# Оновлюємо перший рядок (заголовки)
+# Оновлюємо заголовок (рядок 1)
 sheet.update('A1', [headers])
-
-
 
         col_count = len(headers)
         analyze_indices = []
