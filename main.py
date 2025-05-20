@@ -384,8 +384,7 @@ if start_search:
 
     except Exception as e:
         st.error(f"❌ Загальна помилка: {e}")
-        
-        # --------------------- 🧠 GPT-Аналіз сайтів з вкладки 'результати ---------------------
+        # --------------------- 🧠 GPT-Аналіз сайтів з вкладки 'результати' ---------------------
 st.header("🧠 GPT-Аналіз сайтів з вкладки 'результати'")
 
 analyze_now = st.button("🔍 Запустити аналіз (до 20 нових записів)")
@@ -404,21 +403,21 @@ if analyze_now:
         headers = data[0]
         rows = data[1:]
 
-       # Перевіряємо наявність потрібних колонок і додаємо, якщо бракує
-headers = sheet.row_values(1)
-required_cols = ["Категорія", "Висновок GPT"]
+        # Перевіряємо наявність потрібних колонок і додаємо, якщо бракує
+        headers = sheet.row_values(1)
+        required_cols = ["Категорія", "Висновок GPT"]
 
-for col in required_cols:
-    if col not in headers:
-        headers.append(col)
+        for col in required_cols:
+            if col not in headers:
+                headers.append(col)
 
-# Оновлюємо заголовок (рядок 1)
-sheet.update('A1', [headers])
+        # Оновлюємо заголовок (рядок 1)
+        sheet.update('A1', [headers])
 
         col_count = len(headers)
         analyze_indices = []
         for i, row in enumerate(rows):
-            if len(row) < col_count or row[col_count-2].strip() == "" or row[col_count-1].strip() == "":
+            if len(row) < col_count or row[col_count - 2].strip() == "" or row[col_count - 1].strip() == "":
                 analyze_indices.append(i + 2)  # +2 бо з 2-го рядка, і з 1-індексація
             if len(analyze_indices) >= 20:
                 break
@@ -462,3 +461,4 @@ sheet.update('A1', [headers])
             sheet.update_cell(row_num, col_count, verdict)
 
         st.success(f"✅ GPT проаналізував {len(analyze_indices)} нових сайтів у вкладці 'результати'.")
+
