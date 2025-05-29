@@ -9,7 +9,7 @@ from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name
 from frontend.companies_tab import render_companies_tab
 from frontend.search_tab import render_search_tab
 
-
+st.write("🔑 GOOGLE_API_KEY:", st.secrets.get("GOOGLE_API_KEY", "❌ Немає ключа"))
 
 st.set_page_config(page_title="SAM – Search and Analysis Machine", layout="wide")
 st.title("🔍 Search and Analysis Machine")
