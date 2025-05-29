@@ -1,4 +1,3 @@
-import streamlit as st
 def prompt_is_potential_client(title, description, url, website=None):
     return f"""
     Назва: {title}
