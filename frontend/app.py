@@ -21,7 +21,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔎 Пошук", "📊 Результ�
 
 
 with tab1:
-    render_search_tab()
+    
     st.subheader("Пошук сайтів за ключовим словом")
 
     keyword = st.text_input("🔑 Введіть ключове слово:")
@@ -72,34 +72,7 @@ with tab3:
 
 
 with tab4:
-    st.subheader("📇 Потенційні клієнти (CRM)")
-    try:
-        gc = get_gsheet_client()
-        sheet = gc.open_by_key(gsheet_id)
-        ws = get_worksheet_by_name(sheet, "результати")
-        data = ws.get_all_records()
-        df = pd.DataFrame(data)
-
-        if not df.empty:
-            df = df[df["GPT: Клієнт"] == "Так"]
-
-            category_filter = st.multiselect("Категорія:", sorted(df["Категорія"].dropna().unique()))
-            country_filter = st.multiselect("Країна:", sorted(df["Країна"].dropna().unique()))
-
-            if category_filter:
-                df = df[df["Категорія"].isin(category_filter)]
-
-            if country_filter:
-                df = df[df["Країна"].isin(country_filter)]
-
-            st.dataframe(df.reset_index(drop=True), use_container_width=True)
-        else:
-            st.info("Немає даних для відображення.")
-    except Exception as e:
-        st.error(f"❌ Не вдалося завантажити клієнтів: {e}")
-    st.info("🔒 CRM тимчасово відключено")
-
-
+    render_search_tab()
 with tab5:
     render_companies_tab()
 
