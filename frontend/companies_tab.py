@@ -10,14 +10,20 @@ def render_companies_tab():
     sheet = gc.open_by_key(spreadsheet_id)
 
     all_data = []
+    existing_sites = set()
 
     for tab_name in ["результати", "Аналіз"]:
         try:
             ws = get_worksheet_by_name(sheet, tab_name)
             records = ws.get_all_records()
             for row in records:
+                site = str(row.get("Сайт", "")).strip()
+                if site and site in existing_sites:
+                    continue  # Пропускаємо дублікат сайту з будь-якого джерела
                 row["Джерело"] = tab_name
                 all_data.append(row)
+                if site:
+                    existing_sites.add(site)
         except Exception as e:
             st.warning(f"⚠️ Не вдалося завантажити '{tab_name}': {e}")
 
@@ -27,7 +33,7 @@ def render_companies_tab():
 
     df = pd.DataFrame(all_data)
 
-    # Фільтрація: лише GPT: Клієнт == Так
+    # Фільтрація: лише GPT: Клієнт починається з "Так"
     if "GPT: Клієнт" in df.columns:
         df = df[df["GPT: Клієнт"].astype(str).str.startswith("Так")]
 
@@ -60,4 +66,3 @@ def render_companies_tab():
             df = df[df["Джерело"].isin(source_filter)]
 
     st.dataframe(df.reset_index(drop=True), use_container_width=True)
-
