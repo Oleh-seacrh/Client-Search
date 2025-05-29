@@ -34,7 +34,7 @@ with tab1:
     with col2:
         only_new = st.checkbox("Аналізувати лише нові сайти", value=True)
 
-    if st.button("🚀 Запустити пошук") and keyword:
+    if st.button("🔍 Почати пошук сайтів", key="start_site_search") and keyword:
         with st.spinner("🔍 Виконується пошук і аналіз..."):
             gc = get_gsheet_client()
             results = perform_search_and_analysis(keyword, gc, gsheet_id, only_new, num_results, from_result)
@@ -67,7 +67,7 @@ with tab2:
 with tab3:
     st.subheader("🧠 GPT-Аналіз нових записів")
 
-    if st.button("🔍 Запустити аналіз (до 20 нових записів)"):
+    if st.button("🔍 Запустити аналіз (до 20 нових записів)", key="analyze_results_from_companies"):
         st.warning("🔄 GPT аналіз запущено (поки що — симуляція)")
 
 
