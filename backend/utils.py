@@ -3,6 +3,8 @@ import re
 import time
 from urllib.parse import urlparse
 import streamlit as st
+import requests
+from bs4 import BeautifulSoup
 
 # Отримання OpenAI API ключа із secrets.toml
 openai.api_key = st.secrets["openai_api_key"]
@@ -44,3 +46,19 @@ def extract_email(text: str) -> str:
     """
     match = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", text)
     return match.group(0) if match else ""
+    
+
+def get_page_text(url: str, timeout: int = 5) -> str:
+    """
+    Отримує текст сторінки за URL, без HTML тегів.
+    """
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        resp = requests.get(url, timeout=timeout, headers=headers)
+        if resp.status_code != 200:
+            return ""
+        soup = BeautifulSoup(resp.text, "html.parser")
+        text = soup.get_text(separator=" ", strip=True)
+        return text[:3000]  # обмежуємо до 3000 символів
+    except Exception as e:
+        return f"[Помилка отримання сторінки: {e}]"
