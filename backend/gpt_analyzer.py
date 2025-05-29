@@ -1,7 +1,7 @@
 import re
 from backend.utils import call_gpt
 from backend.gsheet_service import get_gsheet_client
-from prompts.prompts import prompt_get_category, prompt_is_potential_client
+from backend.prompts import prompt_is_company_website
 
 
 def analyze_sites_from_results(spreadsheet_id: str, limit: int = 20) -> list[str]:
