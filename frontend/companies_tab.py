@@ -14,7 +14,7 @@ def render_companies_tab():
         df = df[df["GPT: Клієнт"].str.strip().str.lower().str.startswith("так")]
 
         # Всі необхідні колонки (без "Сторінка")
-        required_columns = ["Назва компанії", "Сайт", "Email", "Країна", "Категорія", "Висновок GPT"]
+        required_columns = ["Компанія", "Сайт", "Email", "Країна", "Категорія", "Висновок GPT"]
 
         # Додаємо порожні колонки, якщо їх не вистачає
         for col in required_columns:
