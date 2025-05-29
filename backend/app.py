@@ -7,6 +7,9 @@ from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name
 st.set_page_config(page_title="SAM – Search and Analysis Machine", layout="wide")
 st.title("🔍 Search and Analysis Machine")
 
+# Отримання spreadsheet_id із secrets
+gsheet_id = st.secrets["spreadsheet_id"]
+
 # Tabs
 tab1, tab2, tab3, tab4 = st.tabs(["🔎 Пошук", "📊 Результати", "🧠 GPT-Аналіз", "📇 Клієнти (CRM)"])
 
@@ -27,8 +30,7 @@ with tab1:
     if st.button("🚀 Запустити пошук") and keyword:
         with st.spinner("🔍 Виконується пошук і аналіз..."):
             gc = get_gsheet_client()
-            spreadsheet_id = "1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0"  # 🔁 Заміни на свій
-            results = perform_search_and_analysis(keyword, gc, spreadsheet_id, only_new, num_results, from_result)
+            results = perform_search_and_analysis(keyword, gc, gsheet_id, only_new, num_results, from_result)
             st.success(f"✅ Збережено {len(results)} нових записів.")
 
 # ---------------- Результати ----------------
@@ -37,7 +39,7 @@ with tab2:
 
     try:
         gc = get_gsheet_client()
-        sheet = gc.open_by_key("1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0")  # 🔁 Заміни на свій
+        sheet = gc.open_by_key(gsheet_id)
         ws = get_worksheet_by_name(sheet, "результати")
         data = ws.get_all_records()
         df = pd.DataFrame(data)
@@ -64,7 +66,7 @@ with tab4:
 
     try:
         gc = get_gsheet_client()
-        sheet = gc.open_by_key("1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0")  # 🔁 Заміни на свій
+        sheet = gc.open_by_key(gsheet_id)
         ws = get_worksheet_by_name(sheet, "результати")
         data = ws.get_all_records()
         df = pd.DataFrame(data)
