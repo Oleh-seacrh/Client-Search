@@ -7,6 +7,7 @@ import pandas as pd
 from backend.search_logic import perform_search_and_analysis
 from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name
 from frontend.companies_tab import render_companies_tab
+from frontend.email_tab import render_email_tab
 
 st.set_page_config(page_title="SAM – Search and Analysis Machine", layout="wide")
 st.title("🔍 Search and Analysis Machine")
@@ -98,4 +99,5 @@ with tab4:
 
 with tab5:
     render_companies_tab()
-
+with tab6:
+    render_email_tab()
