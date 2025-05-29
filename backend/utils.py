@@ -2,14 +2,14 @@ import openai
 import re
 import time
 from urllib.parse import urlparse
+import streamlit as st
 
-# Заміни на свій ключ або імпортуй з secrets
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]  # 🔐
+# Отримання OpenAI API ключа із secrets.toml
+openai.api_key = st.secrets["openai_api_key"]
 
-def call_gpt(prompt: str, model: str = "gpt-4o", max_tokens: int = 300, retries: int = 3, delay: float = 2.0) -> str:
+def call_gpt(prompt: str, model: str = "gpt-4", max_tokens: int = 300, retries: int = 3, delay: float = 2.0) -> str:
     """
-    Викликає OpenAI GPT з заданим промптом.
-    Повертає відповідь у вигляді тексту.
+    Викликає OpenAI GPT з заданим промптом і повертає відповідь у вигляді тексту.
     """
     for attempt in range(retries):
         try:
@@ -40,7 +40,7 @@ def simplify_url(link: str) -> str:
 
 def extract_email(text: str) -> str:
     """
-    Витягує першу email-адресу з тексту (або повертає порожньо)
+    Витягує першу email-адресу з тексту (або повертає порожнє значення)
     """
-    match = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
+    match = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", text)
     return match.group(0) if match else ""
