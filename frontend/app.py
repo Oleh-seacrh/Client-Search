@@ -97,3 +97,23 @@ with tab4:
 with tab5:
     # render_companies_tab()
     st.info("🔒 Вкладка 'Компанії' тимчасово вимкнена")
+    import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+st.subheader("🧪 Тест з'єднання з Google Sheets")
+
+if st.button("🔍 Перевірити доступ"):
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        credentials = ServiceAccountCredentials.from_json_keyfile_dict(
+            st.secrets["gcp_service_account"], scope
+        )
+
+        gc = gspread.authorize(credentials)
+        sheet = gc.open_by_key(st.secrets["spreadsheet_id"])
+        worksheet = sheet.sheet1
+        st.success("✅ З'єднання успішне! Ось перші рядки:")
+        st.write(worksheet.get_all_records()[:5])
+
+    except Exception as e:
+        st.error(f"❌ Помилка: {e}")
