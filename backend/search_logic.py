@@ -6,7 +6,7 @@ from backend.prompts import (
 )
 from backend.utils import call_gpt, extract_email, simplify_url
 from backend.gsheet_service import get_worksheet_by_name, read_existing_urls, append_rows
-
+import streamlit as st
 
 def analyze_site(result: dict) -> dict:
     """
