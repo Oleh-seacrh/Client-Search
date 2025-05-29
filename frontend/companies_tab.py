@@ -1,6 +1,6 @@
 import streamlit as st
 import gspread
-from utils import get_gsheet_client
+from backend.gsheet_service import get_gsheet_client
 
 
 def render_companies_tab():
