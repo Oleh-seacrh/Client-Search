@@ -1,5 +1,6 @@
 from backend.gsheet_service import get_gsheet_client
 import re
+import streamlit as st
 
 def load_companies_from_tab(source_tab: str, spreadsheet_id: str):
     gc = get_gsheet_client()
