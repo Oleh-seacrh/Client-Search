@@ -9,12 +9,15 @@ def render_companies_tab():
         ws = get_worksheet_by_name(sheet, "результати")
         data = ws.get_all_records()
         df = pd.DataFrame(data)
+        
+        df["Джерело"] = "Таблиця"
 
         # Фільтруємо компанії, де GPT: Клієнт починається з "так"
         df = df[df["GPT: Клієнт"].str.strip().str.lower().str.startswith("так")]
 
         # Всі необхідні колонки (без "Сторінка")
-        required_columns = ["Компанія", "Сайт", "Email", "Країна", "Категорія", "Висновок GPT"]
+        required_columns = ["Назва компанії", "Сайт", "Email", "Країна", "Категорія", "Джерело"]
+
 
         # Додаємо порожні колонки, якщо їх не вистачає
         for col in required_columns:
