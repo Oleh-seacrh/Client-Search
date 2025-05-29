@@ -21,6 +21,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔎 Пошук", "📊 Результ�
 
 
 with tab1:
+    render_search_tab()
     st.subheader("Пошук сайтів за ключовим словом")
 
     keyword = st.text_input("🔑 Введіть ключове слово:")
@@ -39,7 +40,7 @@ with tab1:
             results = perform_search_and_analysis(keyword, gc, gsheet_id, only_new, num_results, from_result)
             st.success(f"✅ Збережено {len(results)} нових записів.")
     st.info("🔒 Пошук тимчасово відключено")
-render_search_tab()
+
 
 with tab2:
     st.subheader("📊 Перегляд збережених результатів")
