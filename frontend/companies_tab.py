@@ -24,6 +24,11 @@ def render_companies_tab():
         # Переупорядковуємо колонки
         df = df[required_columns]
 
+        # Видаляємо дублікати за сайтом (ігноруємо регістр і пробіли)
+        df["Сайт_normalized"] = df["Сайт"].str.strip().str.lower()
+        df = df.drop_duplicates(subset="Сайт_normalized", keep="first")
+        df = df.drop(columns=["Сайт_normalized"])
+
         st.markdown("### 🏢 Перспективні компанії (GPT: Клієнт = Так)")
 
         if df.empty:
