@@ -1,4 +1,5 @@
 import re
+from backend.utils import call_gpt
 from backend.gsheet_service import get_gsheet_client
 from prompts.prompts import prompt_get_category, prompt_is_potential_client
 from backend.utils import gpt_call  # wrap для client.chat.completions.create
