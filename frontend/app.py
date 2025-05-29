@@ -17,7 +17,7 @@ st.title("🔍 Search and Analysis Machine")
 gsheet_id = st.secrets["spreadsheet_id"]
 
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔎 Пошук", "📊 Результати", "🧠 GPT-Аналіз", "📇 CRM", "🏢 Компанії"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔎 Пошук", "📊 Результати", "🧠 GPT-Аналіз", "🌐 Пошук сайтів", "🏢 Компанії"])
 
 
 with tab1:
