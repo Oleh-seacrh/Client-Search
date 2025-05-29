@@ -22,8 +22,8 @@ def render_companies_tab():
 
         # Вибрані колонки для відображення (з перевіркою наявності)
         columns_to_show = [col for col in [
-            "Назва", "Сайт", "Категорія", "Країна", "Сторінка", "GPT: Коментар"
-        ] if col in df.columns]
+    "Компанія", "Сайт", "Email", "Категорія", "Країна", "GPT: Коментар"
+] if col in df.columns]
 
         st.dataframe(df[columns_to_show].reset_index(drop=True), use_container_width=True)
 
