@@ -2,17 +2,26 @@ import gspread
 import streamlit as st
 from oauth2client.service_account import ServiceAccountCredentials
 from typing import List, Dict
+import os
+import json
 
 def get_gsheet_client():
     """
-    Авторизація в Google Sheets API через secrets.
+    Авторизація в Google Sheets API. Працює з локального файлу або з secrets.
     """
     scope = [
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+
+    credentials_path = "credentials/service_account.json"
+
+    if os.path.exists(credentials_path):
+        creds = ServiceAccountCredentials.from_json_keyfile_name(credentials_path, scope)
+    else:
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+
     return gspread.authorize(creds)
 
 def get_worksheet_by_name(gsheet, name: str):
