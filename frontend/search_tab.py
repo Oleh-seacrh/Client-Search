@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import streamlit as st
 from backend.company_loader import load_companies_from_tab
 from backend.site_finder import find_sites_for_companies
