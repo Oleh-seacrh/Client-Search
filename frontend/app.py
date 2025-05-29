@@ -97,4 +97,26 @@ with tab4:
 
 
 with tab5:
-    render_companies_tab()
+    def render_companies_tab():
+    try:
+        gc = get_gsheet_client()
+        sheet = gc.open_by_key(st.secrets["spreadsheet_id"])
+        ws = get_worksheet_by_name(sheet, "результати")
+        data = ws.get_all_records()
+        df = pd.DataFrame(data)
+
+        # Фільтруємо тільки потенційних клієнтів
+        df = df[df["GPT: Клієнт"] == "Так"]
+
+        # Виводимо ключову інформацію
+        if not df.empty:
+            st.markdown("### 📁 Перспективні компанії")
+            st.dataframe(df[[
+                "Назва", "Сайт", "Категорія", "Країна", "Сторінка", "GPT: Коментар"
+            ]].reset_index(drop=True), use_container_width=True)
+        else:
+            st.info("Немає компаній, позначених GPT як 'Клієнт: Так'.")
+
+    except Exception as e:
+        st.error(f"❌ Не вдалося завантажити вкладку 'результати' або обробити дані: {e}")
+
