@@ -40,6 +40,7 @@ with tab1:
 
 with tab2:
     st.subheader("📊 Перегляд збережених результатів")
+
     try:
         gc = get_gsheet_client()
         sheet = gc.open_by_key(gsheet_id)
@@ -53,9 +54,10 @@ with tab2:
             df = df[df["GPT: Клієнт"] == "Так"]
 
         st.dataframe(df)
+
     except Exception as e:
         st.error(f"❌ Не вдалося завантажити дані: {e}")
-    st.info("🔒 Підключення до Google Sheets тимчасово вимкнене")
+
 
 
 with tab3:
