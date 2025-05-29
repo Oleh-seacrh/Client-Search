@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from gsheet import get_gsheet_client, get_worksheet_by_name
+from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name
 
 def render_companies_tab():
     st.subheader("🏢 Компанії")
