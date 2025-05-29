@@ -21,9 +21,10 @@ def render_companies_tab():
         st.markdown("### 🏢 Перспективні компанії (GPT: Клієнт = Так)")
 
         # Вибрані колонки для відображення (з перевіркою наявності)
-        columns_to_show = [col for col in [
-    "Компанія", "Сайт", "Email", "Категорія", "Країна", "GPT: Коментар"
-] if col in df.columns]
+        columns = ["Назва компанії", "Сайт", "Email", "Країна", "Категорія", "Сторінка", "Висновок GPT"]
+df = pd.DataFrame(data[1:], columns=data[0])
+df = df[df["Висновок GPT"].str.lower().str.startswith("так")]
+df = df[columns]  # Перевпорядкування
 
         st.dataframe(df[columns_to_show].reset_index(drop=True), use_container_width=True)
 
