@@ -27,7 +27,7 @@ with tab1:
     if st.button("🚀 Запустити пошук") and keyword:
         with st.spinner("🔍 Виконується пошук і аналіз..."):
             gc = get_gsheet_client()
-            spreadsheet_id = "YOUR_SPREADSHEET_ID"  # 🔁 Заміни на свій
+            spreadsheet_id = "1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0"  # 🔁 Заміни на свій
             results = perform_search_and_analysis(keyword, gc, spreadsheet_id, only_new, num_results, from_result)
             st.success(f"✅ Збережено {len(results)} нових записів.")
 
@@ -37,7 +37,7 @@ with tab2:
 
     try:
         gc = get_gsheet_client()
-        sheet = gc.open_by_key("YOUR_SPREADSHEET_ID")  # 🔁 Заміни на свій
+        sheet = gc.open_by_key("1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0")  # 🔁 Заміни на свій
         ws = get_worksheet_by_name(sheet, "результати")
         data = ws.get_all_records()
         df = pd.DataFrame(data)
@@ -64,7 +64,7 @@ with tab4:
 
     try:
         gc = get_gsheet_client()
-        sheet = gc.open_by_key("YOUR_SPREADSHEET_ID")  # 🔁 Заміни на свій
+        sheet = gc.open_by_key("1S0nkJYXrVTsMHmeOC-uvMWnrw_yQi5z8NzRsJEcBjc0")  # 🔁 Заміни на свій
         ws = get_worksheet_by_name(sheet, "результати")
         data = ws.get_all_records()
         df = pd.DataFrame(data)
