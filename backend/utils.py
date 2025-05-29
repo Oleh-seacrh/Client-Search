@@ -9,11 +9,7 @@ from bs4 import BeautifulSoup
 
 
 def call_gpt(prompt: str, model: str = "gpt-4", max_tokens: int = 300, retries: int = 3, delay: float = 2.0) -> str:
-    import openai
     openai.api_key = get_secret("openai_api_key")
-    """
-    Викликає OpenAI GPT з заданим промптом і повертає відповідь у вигляді тексту.
-    """
     for attempt in range(retries):
         try:
             response = openai.ChatCompletion.create(
@@ -30,6 +26,7 @@ def call_gpt(prompt: str, model: str = "gpt-4", max_tokens: int = 300, retries: 
             print(f"[GPT Error] Спроба {attempt+1}/{retries}: {e}")
             time.sleep(delay)
     return "GPT Error"
+
 
 def simplify_url(link: str) -> str:
     """
