@@ -16,14 +16,15 @@ def simplify_url(link: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-def get_google_search_params(query: str):
-    import streamlit as st  # Імпортуємо тут, щоб не було помилки при імпорті модуля
+def get_google_search_params(query: str) -> dict:
+    import streamlit as st  # Локальний імпорт, щоб уникнути помилок при запуску не в Streamlit
     return {
         "key": st.secrets["GOOGLE_API_KEY"],
         "cx": st.secrets["CSE_ID"],
         "q": query,
         "num": 10
     }
+
 
 
 def find_sites_for_companies(max_to_check: int, spreadsheet_id: str) -> list[str]:
