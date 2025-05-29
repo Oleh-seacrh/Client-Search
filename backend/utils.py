@@ -1,25 +1,46 @@
 import openai
+import re
 import time
+from urllib.parse import urlparse
 
-# Можеш зберігати ключ у змінних середовища або secrets.toml
-openai.api_key = "YOUR_OPENAI_API_KEY"  # 🔐 заміни або імпортуй окремо
+# Заміни на свій ключ або імпортуй з secrets
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]  # 🔐
 
-def call_gpt(prompt: str, model: str = "gpt-4o", max_tokens: int = 300) -> str:
+def call_gpt(prompt: str, model: str = "gpt-4o", max_tokens: int = 300, retries: int = 3, delay: float = 2.0) -> str:
     """
-    Викликає GPT з заданим промптом і повертає відповідь як текст.
+    Викликає OpenAI GPT з заданим промптом.
+    Повертає відповідь у вигляді тексту.
+    """
+    for attempt in range(retries):
+        try:
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "Ти GPT, який аналізує бізнес-сайти. Відповідай коротко і структуровано."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=max_tokens,
+                temperature=0.3,
+            )
+            return response['choices'][0]['message']['content'].strip()
+        except Exception as e:
+            print(f"[GPT Error] Спроба {attempt+1}/{retries}: {e}")
+            time.sleep(delay)
+    return "GPT Error"
+
+def simplify_url(link: str) -> str:
+    """
+    Спрощує URL до формату https://site.com
     """
     try:
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "Ти помічник-аналітик, який відповідає чітко, структуровано і коротко."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=max_tokens,
-            temperature=0.3,
-        )
-        return response['choices'][0]['message']['content'].strip()
-    except Exception as e:
-        print(f"[GPT Error] {e}")
-        return "GPT Error"
+        parsed = urlparse(link)
+        return f"{parsed.scheme}://{parsed.netloc}"
+    except Exception:
+        return link  # fallback
 
+def extract_email(text: str) -> str:
+    """
+    Витягує першу email-адресу з тексту (або повертає порожньо)
+    """
+    match = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
+    return match.group(0) if match else ""
