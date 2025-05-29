@@ -4,9 +4,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import streamlit as st
 import pandas as pd
-
 from backend.search_logic import perform_search_and_analysis
 from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name
+from frontend.companies_tab import render_companies_tab
 
 st.set_page_config(page_title="SAM – Search and Analysis Machine", layout="wide")
 st.title("🔍 Search and Analysis Machine")
@@ -15,7 +15,7 @@ st.title("🔍 Search and Analysis Machine")
 gsheet_id = st.secrets["spreadsheet_id"]
 
 # Tabs
-tab1, tab2, tab3, tab4 = st.tabs(["🔎 Пошук", "📊 Результати", "🧠 GPT-Аналіз", "📇 Клієнти (CRM)"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔎 Пошук", "📊 Результати", "🧠 GPT-Аналіз", "📇 CRM", "🏢 Компанії"])
 
 # ---------------- Пошук ----------------
 with tab1:
@@ -93,3 +93,7 @@ with tab4:
 
     except Exception as e:
         st.error(f"❌ Не вдалося завантажити клієнтів: {e}")
+
+# ---------------- Компанії ----------------
+with tab5:
+    render_companies_tab()
