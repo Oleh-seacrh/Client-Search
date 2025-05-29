@@ -29,7 +29,7 @@ def render_companies_tab():
 
     # Фільтрація: лише GPT: Клієнт == Так
     if "GPT: Клієнт" in df.columns:
-        df = df[df["GPT: Клієнт"] == "Так"]
+        df = df[df["GPT: Клієнт"].astype(str).str.startswith("Так")]
 
     # Виводимо тільки важливі колонки
     expected_columns = ["Назва", "Сайт", "Email", "Країна", "Категорія", "Джерело"]
