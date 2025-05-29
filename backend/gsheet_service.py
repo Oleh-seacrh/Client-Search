@@ -1,1 +1,53 @@
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from typing import List, Dict
+
+
+def get_gsheet_client(credentials_path: str = "credentials/service_account.json"):
+    """
+    Авторизація в Google Sheets API.
+    """
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_name(credentials_path, scope)
+    return gspread.authorize(creds)
+
+
+def get_worksheet_by_name(gsheet, name: str):
+    """
+    Повертає вкладку (worksheet) за назвою або створює її.
+    """
+    try:
+        return gsheet.worksheet(name)
+    except gspread.exceptions.WorksheetNotFound:
+        return gsheet.add_worksheet(title=name, rows="1000", cols="20")
+
+
+def read_existing_urls(sheet) -> List[str]:
+    """
+    Зчитує всі вже наявні посилання з вкладки.
+    """
+    try:
+        records = sheet.get_all_records()
+        return [row.get("Сайт", "").strip() for row in records]
+    except:
+        return []
+
+
+def append_rows(sheet, data: List[Dict]):
+    """
+    Додає список словників у таблицю. Додає заголовки, якщо потрібно.
+    """
+    if not data:
+        return
+
+    existing_data = sheet.get_all_values()
+    if not existing_data:
+        sheet.append_row(list(data[0].keys()))
+
+    rows_to_append = [list(row.values()) for row in data]
+    sheet.append_rows(rows_to_append, value_input_option="USER_ENTERED")
 
