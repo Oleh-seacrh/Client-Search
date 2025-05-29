@@ -1,7 +1,7 @@
 import re
 import time
 from urllib.parse import urlparse
-from streamlit.runtime.secrets import get_secret
+import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 
@@ -9,7 +9,8 @@ from bs4 import BeautifulSoup
 
 
 def call_gpt(prompt: str, model: str = "gpt-4", max_tokens: int = 300, retries: int = 3, delay: float = 2.0) -> str:
-    openai.api_key = get_secret("openai_api_key")
+    import openai
+    openai.api_key = st.secrets["openai_api_key"]
     for attempt in range(retries):
         try:
             response = openai.ChatCompletion.create(
