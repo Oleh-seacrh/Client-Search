@@ -97,5 +97,5 @@ with tab4:
 
 
 with tab5:
-    render_companies_tab():
+    render_companies_tab()
 
