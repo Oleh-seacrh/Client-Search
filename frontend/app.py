@@ -7,6 +7,7 @@ import pandas as pd
 from backend.search_logic import perform_search_and_analysis
 from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name
 from frontend.companies_tab import render_companies_tab
+from frontend.search_tab import render_search_tab
 
 
 
@@ -38,7 +39,7 @@ with tab1:
             results = perform_search_and_analysis(keyword, gc, gsheet_id, only_new, num_results, from_result)
             st.success(f"✅ Збережено {len(results)} нових записів.")
     st.info("🔒 Пошук тимчасово відключено")
-
+render_search_tab()
 
 with tab2:
     st.subheader("📊 Перегляд збережених результатів")
