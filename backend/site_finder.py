@@ -3,7 +3,7 @@ import pandas as pd
 from urllib.parse import urlparse
 
 from backend.gsheet_service import get_gsheet_client
-from prompts.prompt_is_company_website import prompt_is_company_website
+from prompts.prompts import prompt_is_company_website
 from backend.utils import get_page_text
 
 def simplify_url(link: str) -> str:
