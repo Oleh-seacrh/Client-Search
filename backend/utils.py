@@ -1,4 +1,3 @@
-import openai
 import re
 import time
 from urllib.parse import urlparse
