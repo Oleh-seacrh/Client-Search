@@ -16,7 +16,9 @@ st.title("🔍 Search and Analysis Machine")
 
 gsheet_id = st.secrets["spreadsheet_id"]
 
-st.write("🔑 GOOGLE_API_KEY:", st.secrets.get("GOOGLE_API_KEY", "❌ Немає ключа"))
+st.write("🔍 Перевірка ключів:")
+st.write("GOOGLE_API_KEY:", st.secrets.get("GOOGLE_API_KEY", "❌ Немає"))
+st.write("CSE_ID:", st.secrets.get("CSE_ID", "❌ Немає"))
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔎 Пошук", "📊 Результати", "🧠 GPT-Аналіз", "🌐 Пошук сайтів", "🏢 Компанії"])
 
 
