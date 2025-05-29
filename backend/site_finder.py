@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import requests
-from streamlit.runtime.secrets import get_secret
+import streamlit as st
 import pandas as pd
 from urllib.parse import urlparse
 
@@ -49,8 +49,8 @@ def find_sites_for_companies(max_to_check: int, spreadsheet_id: str) -> list[str
     for row_index, name in to_process:
         try:
             params = {
-                "key": get_secret("GOOGLE_API_KEY"),
-                "cx": get_secret("CSE_ID"),
+                "key": st.secrets("GOOGLE_API_KEY"),
+                "cx": st.secrets("CSE_ID"),
                 "q": name,
                 "num": 10
             }
