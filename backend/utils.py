@@ -7,9 +7,11 @@ import requests
 from bs4 import BeautifulSoup
 
 # Отримання OpenAI API ключа із secrets.toml
-openai.api_key = get_secret("openai_api_key")
+
 
 def call_gpt(prompt: str, model: str = "gpt-4", max_tokens: int = 300, retries: int = 3, delay: float = 2.0) -> str:
+    import openai
+    openai.api_key = get_secret("openai_api_key")
     """
     Викликає OpenAI GPT з заданим промптом і повертає відповідь у вигляді тексту.
     """
