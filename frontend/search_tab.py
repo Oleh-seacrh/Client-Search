@@ -10,7 +10,7 @@ def render_search_tab():
     st.header("📥 Завантаження назв компаній з іншої вкладки")
 
     source_tab = st.text_input("Введи назву вкладки з компаніями:")
-    if st.button("Зчитати компанії та доповнити вкладку 'компанії'"):
+    if st.button("🔍 Зчитати компанії та доповнити вкладку 'компанії'", key="load_companies"):
         if source_tab:
             try:
                 logs, count = load_companies_from_tab(source_tab, st.secrets["spreadsheet_id"])
