@@ -1,8 +1,8 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import requests
-import streamlit as st
 import pandas as pd
 from urllib.parse import urlparse
 
@@ -10,11 +10,24 @@ from backend.gsheet_service import get_gsheet_client
 from backend.prompts import prompt_is_company_website
 from backend.utils import get_page_text
 
+
 def simplify_url(link: str) -> str:
     parsed = urlparse(link)
     return f"{parsed.scheme}://{parsed.netloc}"
 
+
+def get_google_search_params(query: str):
+    import streamlit as st  # Імпортуємо тут, щоб не було помилки при імпорті модуля
+    return {
+        "key": st.secrets["GOOGLE_API_KEY"],
+        "cx": st.secrets["CSE_ID"],
+        "q": query,
+        "num": 10
+    }
+
+
 def find_sites_for_companies(max_to_check: int, spreadsheet_id: str) -> list[str]:
+    import streamlit as st  # також тут
     gc = get_gsheet_client()
     sh = gc.open_by_key(spreadsheet_id)
 
@@ -48,12 +61,7 @@ def find_sites_for_companies(max_to_check: int, spreadsheet_id: str) -> list[str
     log_output = []
     for row_index, name in to_process:
         try:
-            params = {
-                "key": st.secrets("GOOGLE_API_KEY"),
-                "cx": st.secrets("CSE_ID"),
-                "q": name,
-                "num": 10
-            }
+            params = get_google_search_params(name)
             resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
             items = resp.json().get("items", [])
 
