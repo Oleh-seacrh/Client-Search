@@ -4,7 +4,7 @@ import time
 # Можеш зберігати ключ у змінних середовища або secrets.toml
 openai.api_key = "YOUR_OPENAI_API_KEY"  # 🔐 заміни або імпортуй окремо
 
-def call_gpt(prompt: str, model: str = "gpt-4", max_tokens: int = 300) -> str:
+def call_gpt(prompt: str, model: str = "gpt-4o", max_tokens: int = 300) -> str:
     """
     Викликає GPT з заданим промптом і повертає відповідь як текст.
     """
