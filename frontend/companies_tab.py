@@ -11,7 +11,7 @@ def render_companies_tab():
 
     all_data = []
 
-    for tab_name in ["результати", "аналіз"]:
+    for tab_name in ["результати", "Аналіз"]:
         try:
             ws = get_worksheet_by_name(sheet, tab_name)
             records = ws.get_all_records()
