@@ -1,38 +1,30 @@
 import streamlit as st
-import gspread
-from backend.gsheet_service import get_gsheet_client
-
+import pandas as pd
+from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name
 
 def render_companies_tab():
-    st.header("📋 Список компаній")
-
-    # Отримуємо доступ до Google Sheets
-    gc = get_gsheet_client()
-    spreadsheet_id = st.secrets["spreadsheet_id"]
-    spreadsheet = gc.open_by_key(spreadsheet_id)
-
     try:
-        sheet = spreadsheet.worksheet("Компанії")
-    except gspread.exceptions.WorksheetNotFound:
-        st.warning("Не знайдено вкладку 'Компанії'.")
-        return
+        gc = get_gsheet_client()
+        sheet = gc.open_by_key(st.secrets["spreadsheet_id"])
+        ws = get_worksheet_by_name(sheet, "результати")
+        data = ws.get_all_records()
+        df = pd.DataFrame(data)
 
-    # Отримуємо всі значення
-    data = sheet.get_all_values()
-    if not data or len(data) < 2:
-        st.info("Поки що немає компаній для відображення.")
-        return
+        # Фільтруємо тільки компанії, позначені GPT як потенційні клієнти
+        df = df[df["GPT: Клієнт"] == "Так"]
 
-    # Витягуємо заголовки та дані
-    headers = data[0]
-    rows = data[1:]
+        if df.empty:
+            st.info("📭 Немає компаній, позначених GPT як 'Клієнт: Так'.")
+            return
 
-    # Перетворюємо в список словників для зручності
-    structured_data = [dict(zip(headers, row)) for row in rows]
+        st.markdown("### 🏢 Перспективні компанії (GPT: Клієнт = Так)")
 
-    # Сортуємо за алфавітом
-    structured_data.sort(key=lambda x: x.get("Назва компанії", "").lower())
+        # Вибрані колонки для відображення (з перевіркою наявності)
+        columns_to_show = [col for col in [
+            "Назва", "Сайт", "Категорія", "Країна", "Сторінка", "GPT: Коментар"
+        ] if col in df.columns]
 
-    # Виводимо таблицю
-    st.dataframe(structured_data, use_container_width=True)
+        st.dataframe(df[columns_to_show].reset_index(drop=True), use_container_width=True)
 
+    except Exception as e:
+        st.error(f"❌ Не вдалося завантажити дані з вкладки 'результати': {e}")
