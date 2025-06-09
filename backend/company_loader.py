@@ -64,18 +64,26 @@ def get_new_clients_from_tab(tab_name: str):
     }
     source = source_map.get(tab_name, "Unknown")
 
-    # Витягуємо з Client
-    ws_client = sh.worksheet("Client")
-    client_data = ws_client.get_all_records()
-    client_df = pd.DataFrame(client_data)
-    existing_websites = set(client_df["Сайт"].str.lower().fillna(""))
-    existing_emails = set(client_df["Email"].str.lower().fillna(""))
+    # Читаємо вкладку Client
+    try:
+        ws_client = sh.worksheet("Client")
+        client_data = ws_client.get_all_records()
+        client_df = pd.DataFrame(client_data)
+    except:
+        client_df = pd.DataFrame()
 
-    # Витягуємо з джерела
-    ws_source = sh.worksheet(tab_name)
-    source_data = ws_source.get_all_records()
+    # Безпечна перевірка колонок
+    existing_websites = set(client_df.get("Сайт", pd.Series(dtype=str)).str.lower().fillna(""))
+    existing_emails = set(client_df.get("Email", pd.Series(dtype=str)).str.lower().fillna(""))
+
+    # Читаємо джерельну вкладку
+    try:
+        ws_source = sh.worksheet(tab_name)
+        source_data = ws_source.get_all_records()
+    except:
+        return []
+
     new_df = pd.DataFrame(source_data)
-
     new_clients = []
 
     for row in new_df.to_dict("records"):
@@ -85,8 +93,9 @@ def get_new_clients_from_tab(tab_name: str):
         if website in existing_websites or email in existing_emails:
             continue
 
+        # Безпечне формування полів: якщо немає — вставляється ""
         new_clients.append({
-            "Company": row.get("Company") or row.get("Назва компанії") or "",
+            "Company": row.get("Company") or row.get("Назва") or row.get("Назва компанії") or "",
             "Website": website,
             "Email": email,
             "Contact person": row.get("Contact person", ""),
