@@ -68,7 +68,7 @@ def get_new_clients_from_tab(tab_name: str):
     ws_client = sh.worksheet("Client")
     client_data = ws_client.get_all_records()
     client_df = pd.DataFrame(client_data)
-    existing_websites = set(client_df["Website"].str.lower().fillna(""))
+    existing_websites = set(client_df["Сайт"].str.lower().fillna(""))
     existing_emails = set(client_df["Email"].str.lower().fillna(""))
 
     # Витягуємо з джерела
