@@ -79,7 +79,7 @@ with tab6:
     st.subheader("📇 Дані CRM (вкладка 'Client')")
 
     # Кнопка для оновлення
-    with st.expander("🔁 Оновити CRM з Аналізу"):
+with st.expander("🔁 Оновити CRM з Аналізу"):
     if st.button("🚀 GPT: Знайти нових клієнтів з 'Аналізу'"):
         with st.spinner("Перевіряємо..."):
             new_clients = get_new_clients_from_tab("Аналіз")
