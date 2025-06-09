@@ -51,3 +51,54 @@ def load_companies_from_tab(source_tab: str, spreadsheet_id: str):
         company_sheet.update(f"A{next_row}:A{next_row + len(new_entries) - 1}", new_entries)
 
     return log_output, len(new_entries)
+    
+def get_new_clients_from_tab(tab_name: str):
+    import pandas as pd
+    from backend.gsheet_service import get_gsheet_client
+
+    gc = get_gsheet_client()
+    sh = gc.open_by_key(st.secrets["spreadsheet_id"])
+    
+    source_map = {
+        "Аналіз": "Search",
+        "результати": "TradeAtlas",
+        "Email": "Email"
+    }
+    source = source_map.get(tab_name, "Unknown")
+
+    # Витягуємо з Client
+    ws_client = sh.worksheet("Client")
+    client_data = ws_client.get_all_records()
+    client_df = pd.DataFrame(client_data)
+    existing_websites = set(client_df["Website"].str.lower().fillna(""))
+    existing_emails = set(client_df["Email"].str.lower().fillna(""))
+
+    # Витягуємо з джерела
+    ws_source = sh.worksheet(tab_name)
+    source_data = ws_source.get_all_records()
+    new_df = pd.DataFrame(source_data)
+
+    new_clients = []
+
+    for row in new_df.to_dict("records"):
+        website = str(row.get("Website") or row.get("Сайт") or "").strip().lower()
+        email = str(row.get("Email") or row.get("Пошта") or "").strip().lower()
+
+        if website in existing_websites or email in existing_emails:
+            continue
+
+        new_clients.append({
+            "Company": row.get("Company") or row.get("Назва компанії") or "",
+            "Website": website,
+            "Email": email,
+            "Contact person": row.get("Contact person", ""),
+            "Brand": row.get("Brand", ""),
+            "Product": row.get("Product") or row.get("Продукт") or "",
+            "Quantity": row.get("Quantity") or row.get("Кількість") or "",
+            "Country": row.get("Country") or row.get("Країна") or "",
+            "Source": source,
+            "Status": "Новий",
+            "Deal value": ""
+        })
+
+    return new_clients
