@@ -17,7 +17,7 @@ st.title("🔍 Search and Analysis Machine")
 gsheet_id = st.secrets["spreadsheet_id"]
 
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔎 Пошук", "📊 Результати", "🧠 GPT-Аналіз", "🌐 Пошук сайтів", "🏢 Компанії"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🔎 Пошук", "📊 Результати", "🧠 GPT-Аналіз", "🌐 Пошук сайтів", "🏢 Компанії", "📇 Client"])
 
 
 with tab1:
@@ -75,5 +75,20 @@ with tab4:
     render_search_tab()
 with tab5:
     render_companies_tab()
+with tab6:
+    st.subheader("📇 Дані CRM (вкладка 'Client')")
 
+    try:
+        gc = get_gsheet_client()
+        sheet = gc.open_by_key(st.secrets["spreadsheet_id"])
+        ws = sheet.worksheet("Client")
+        data = ws.get_all_records()
+        df = pd.DataFrame(data)
+
+        if df.empty:
+            st.info("Таблиця порожня 🕳️")
+        else:
+            st.dataframe(df)
+    except Exception as e:
+        st.error(f"Помилка: {e}")
 
