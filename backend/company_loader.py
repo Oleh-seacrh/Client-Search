@@ -54,9 +54,6 @@ def load_companies_from_tab(source_tab: str, spreadsheet_id: str):
     return log_output, len(new_entries)
     
 def get_new_clients_from_tab(tab_name: str):
-    import pandas as pd
-    from backend.gsheet_service import get_gsheet_client
-
     gc = get_gsheet_client()
     sh = gc.open_by_key(st.secrets["spreadsheet_id"])
     
