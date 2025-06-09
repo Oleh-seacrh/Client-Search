@@ -54,9 +54,11 @@ def load_companies_from_tab(source_tab: str, spreadsheet_id: str):
     return log_output, len(new_entries)
     
 def get_new_clients_from_tab(tab_name: str):
+
     gc = get_gsheet_client()
     sh = gc.open_by_key(st.secrets["spreadsheet_id"])
-    
+
+    # Мапа джерел
     source_map = {
         "Аналіз": "Search",
         "результати": "TradeAtlas",
@@ -64,7 +66,7 @@ def get_new_clients_from_tab(tab_name: str):
     }
     source = source_map.get(tab_name, "Unknown")
 
-    # Читаємо вкладку Client
+    # Отримуємо дані з вкладки Client
     try:
         ws_client = sh.worksheet("Client")
         client_data = ws_client.get_all_records()
@@ -72,11 +74,18 @@ def get_new_clients_from_tab(tab_name: str):
     except:
         client_df = pd.DataFrame()
 
-    # Безпечна перевірка колонок
-    existing_websites = set(client_df.get("Сайт", pd.Series(dtype=str)).str.lower().fillna(""))
-    existing_emails = set(client_df.get("Email", pd.Series(dtype=str)).str.lower().fillna(""))
+    # Безпечна перевірка наявності колонок
+    if "Сайт" in client_df.columns:
+        existing_websites = set(client_df["Сайт"].str.lower().fillna(""))
+    else:
+        existing_websites = set()
 
-    # Читаємо джерельну вкладку
+    if "Email" in client_df.columns:
+        existing_emails = set(client_df["Email"].str.lower().fillna(""))
+    else:
+        existing_emails = set()
+
+    # Отримуємо дані з вкладки-джерела
     try:
         ws_source = sh.worksheet(tab_name)
         source_data = ws_source.get_all_records()
@@ -90,16 +99,16 @@ def get_new_clients_from_tab(tab_name: str):
         website = str(row.get("Website") or row.get("Сайт") or "").strip().lower()
         email = str(row.get("Email") or row.get("Пошта") or "").strip().lower()
 
+        # Пропускаємо, якщо такий вже існує
         if website in existing_websites or email in existing_emails:
             continue
 
-        # Безпечне формування полів: якщо немає — вставляється ""
         new_clients.append({
             "Company": row.get("Company") or row.get("Назва") or row.get("Назва компанії") or "",
             "Website": website,
             "Email": email,
-            "Contact person": row.get("Contact person", ""),
-            "Brand": row.get("Brand", ""),
+            "Contact person": row.get("Contact person") or "",
+            "Brand": row.get("Brand") or "",
             "Product": row.get("Product") or row.get("Продукт") or "",
             "Quantity": row.get("Quantity") or row.get("Кількість") or "",
             "Country": row.get("Country") or row.get("Країна") or "",
