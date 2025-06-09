@@ -78,20 +78,19 @@ with tab5:
 with tab6:
     st.subheader("📇 Дані CRM (вкладка 'Client')")
 
-    # Кнопка для оновлення
-with st.expander("🔁 Оновити CRM з Аналізу"):
-    if st.button("🚀 GPT: Знайти нових клієнтів з 'Аналізу'"):
-        with st.spinner("Перевіряємо..."):
-            new_clients = get_new_clients_from_tab("Аналіз")
+    with st.expander("🔁 Оновити CRM з Аналізу"):
+        if st.button("🚀 GPT: Знайти нових клієнтів з 'Аналізу'"):
+            with st.spinner("Перевіряємо..."):
+                new_clients = get_new_clients_from_tab("Аналіз")
 
-            if not new_clients:
-                st.success("✅ Нових клієнтів не знайдено.")
-            else:
-                df_new = pd.DataFrame(new_clients)
-                st.write("🆕 Нові клієнти:")
-                st.dataframe(df_new)
+                if not new_clients:
+                    st.success("✅ Нових клієнтів не знайдено.")
+                else:
+                    df_new = pd.DataFrame(new_clients)
+                    st.write("🆕 Нові клієнти:")
+                    st.dataframe(df_new)
 
-                if st.button("✅ Додати до CRM"):
-                    ws_client = get_gsheet_client().open_by_key(st.secrets["spreadsheet_id"]).worksheet("Client")
-                    ws_client.append_rows(df_new.values.tolist(), value_input_option="USER_ENTERED")
-                    st.success("🎉 Додано до CRM!")
+                    if st.button("✅ Додати до CRM"):
+                        ws_client = get_gsheet_client().open_by_key(st.secrets["spreadsheet_id"]).worksheet("Client")
+                        ws_client.append_rows(df_new.values.tolist(), value_input_option="USER_ENTERED")
+                        st.success("🎉 Додано до CRM!")
