@@ -8,7 +8,7 @@ from backend.search_logic import perform_search_and_analysis
 from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name
 from frontend.companies_tab import render_companies_tab
 from frontend.search_tab import render_search_tab
-from backend.prompts import get_new_clients_from_tab
+from backend.company_loader import get_new_clients_from_tab
 
 
 st.set_page_config(page_title="SAM – Search and Analysis Machine", layout="wide")
@@ -80,17 +80,18 @@ with tab6:
 
     # Кнопка для оновлення
     with st.expander("🔁 Оновити CRM з Аналізу"):
-        if st.button("🚀 Перевірити нові клієнти"):
-            with st.spinner("GPT перевіряє..."):
-                new_clients = get_new_clients_from_tab("Аналіз")
-                if not new_clients:
-                    st.success("✅ Нових клієнтів не знайдено.")
-                else:
-                    df_new = pd.DataFrame(new_clients)
-                    st.write("🆕 Нові клієнти для додавання:")
-                    st.dataframe(df_new)
+    if st.button("🚀 GPT: Знайти нових клієнтів з 'Аналізу'"):
+        with st.spinner("Перевіряємо..."):
+            new_clients = get_new_clients_from_tab("Аналіз")
 
-                    if st.button("✅ Додати до CRM"):
-                        ws_client = get_gsheet_client().open_by_key(st.secrets["spreadsheet_id"]).worksheet("Client")
-                        ws_client.append_rows(df_new.values.tolist(), value_input_option="USER_ENTERED")
-                        st.success("Додано до CRM!")
+            if not new_clients:
+                st.success("✅ Нових клієнтів не знайдено.")
+            else:
+                df_new = pd.DataFrame(new_clients)
+                st.write("🆕 Нові клієнти:")
+                st.dataframe(df_new)
+
+                if st.button("✅ Додати до CRM"):
+                    ws_client = get_gsheet_client().open_by_key(st.secrets["spreadsheet_id"]).worksheet("Client")
+                    ws_client.append_rows(df_new.values.tolist(), value_input_option="USER_ENTERED")
+                    st.success("🎉 Додано до CRM!")
