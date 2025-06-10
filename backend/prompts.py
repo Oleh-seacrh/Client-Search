@@ -57,3 +57,14 @@ def prompt_get_country(description: str, url: str) -> str:
     Response format:
     Country: ...
     """
+def prompt_get_company_name(description: str, url: str) -> str:
+    return f"""
+    Based on the following information:
+    Description: {description}
+    Website: {url}
+
+    What is the official name of the company mentioned?
+    Respond in this format:
+    Company Name: ...
+    """
+
