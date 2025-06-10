@@ -6,7 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def call_gpt(prompt: str, model: str = "gpt-4o", max_tokens: int = 300) -> str:
+def call_gpt(prompt: str, model: str = "gpt-4", max_tokens: int = 300) -> str:
     try:
         response = client.chat.completions.create(
             model=model,
