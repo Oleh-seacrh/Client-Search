@@ -67,12 +67,15 @@ def prompt_get_country(description: str, url: str) -> str:
     """
 def prompt_get_company_name(description: str, url: str) -> str:
     return f"""
-    Based on the following information:
+    Based on the following company description and website, determine the official company name:
+
     Description: {description}
     Website: {url}
 
-    What is the official name of the company mentioned?
-    Respond in this format:
+    The name should:
+    - NOT include slogans, product names, or marketing phrases
+    - Be concise (e.g., “Medline Industries”, “XrayMedem”)
+
+    Respond in this format only:
     Company Name: ...
     """
-
