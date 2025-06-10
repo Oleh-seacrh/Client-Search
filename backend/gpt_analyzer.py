@@ -1,45 +1,53 @@
 import re
-from backend.utils import call_gpt
+from backend.utils import gpt_call
 from backend.gsheet_service import get_gsheet_client
-from backend.prompts import prompt_is_company_website
+from backend.prompts import prompt_get_category, prompt_is_potential_client
 
 
-def analyze_sites_from_results(spreadsheet_id: str, limit: int = 20) -> list[str]:
+def analyze_sites_from_client_tab(spreadsheet_id: str, limit: int = 20) -> list[str]:
     gc = get_gsheet_client()
     sh = gc.open_by_key(spreadsheet_id)
 
     try:
-        sheet = sh.worksheet("результати")
+        sheet = sh.worksheet("Client")
     except:
-        return ["❌ Вкладка 'результати' не знайдена."]
+        return ["❌ Sheet 'Client' not found."]
 
     data = sheet.get_all_values()
     headers = data[0]
     rows = data[1:]
 
-    # Додаємо колонки, якщо відсутні
-    required_cols = ["Категорія", "Висновок GPT"]
-    for col in required_cols:
-        if col not in headers:
-            headers.append(col)
-            sheet.update("A1", [headers])  # оновлення заголовка
+    # Ensure required columns exist
+    required_cols = ["Category", "GPT", "Client"]
+    missing_cols = [col for col in required_cols if col not in headers]
 
+    if missing_cols:
+        headers += missing_cols
+        sheet.update("A1", [headers])
+        # Re-read to get updated structure
+        data = sheet.get_all_values()
+        headers = data[0]
+        rows = data[1:]
+
+    # Indexes of required columns
     col_count = len(headers)
+    col_index = {h: i for i, h in enumerate(headers)}
     analyze_indices = []
+
     for i, row in enumerate(rows):
-        # Якщо Категорія або Висновок порожні
-        if len(row) < col_count or row[col_count - 2].strip() == "" or row[col_count - 1].strip() == "":
-            analyze_indices.append(i + 2)  # +2 бо 1-based, з другої строки
+        # Condition: missing any of [Category, GPT, Client]
+        row_extended = row + [""] * (col_count - len(row))
+        if not row_extended[col_index["Category"]].strip() or not row_extended[col_index["Client"]].strip():
+            analyze_indices.append(i + 2)  # 1-based, with header row
         if len(analyze_indices) >= limit:
             break
 
     logs = []
     for row_num in analyze_indices:
         row = sheet.row_values(row_num)
-        title = row[0]
-        url = row[1]
+        title = row[col_index.get("Company", 0)]
+        url = row[col_index.get("Website", 1)]
 
-        # Запити до GPT
         try:
             category_prompt = prompt_get_category(title, "", url)
             verdict_prompt = prompt_is_potential_client(title, "", url, url)
@@ -47,24 +55,28 @@ def analyze_sites_from_results(spreadsheet_id: str, limit: int = 20) -> list[str
             category_response = gpt_call(category_prompt)
             verdict_response = gpt_call(verdict_prompt)
         except Exception as e:
-            logs.append(f"❌ Помилка GPT при обробці {title}: {e}")
+            logs.append(f"❌ GPT error on `{title}`: {e}")
             continue
 
-        # Витягуємо відповіді
+        # Extract GPT answers
         category = "-"
         verdict = "-"
+        gpt_comment = ""
 
-        cat_match = re.search(r"Категорія:\s*(.*)", category_response)
+        cat_match = re.search(r"Category:\s*(.*)", category_response)
         if cat_match:
             category = cat_match.group(1).strip()
 
-        verdict_match = re.search(r"Клієнт:\s*(.*)", verdict_response)
+        verdict_match = re.search(r"Client:\s*(.*)", verdict_response)
         if verdict_match:
-            verdict = f"Клієнт: {verdict_match.group(1).strip()}"
+            verdict = verdict_match.group(1).strip()
+            gpt_comment = verdict_response.strip()
 
-        # Записуємо результат
-        sheet.update_cell(row_num, col_count - 1, category)
-        sheet.update_cell(row_num, col_count, verdict)
-        logs.append(f"🔎 `{title}` → `{category}` / `{verdict}`")
+        # Update cells
+        sheet.update_cell(row_num, col_index["Category"] + 1, category)
+        sheet.update_cell(row_num, col_index["Client"] + 1, verdict)
+        sheet.update_cell(row_num, col_index["GPT"] + 1, gpt_comment)
+
+        logs.append(f"🔍 `{title}` → `{category}` / `{verdict}`")
 
     return logs
