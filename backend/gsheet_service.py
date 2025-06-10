@@ -41,28 +41,23 @@ def read_existing_websites(sheet) -> List[str]:
         return []
 
 
-def append_rows(sheet, data: List[Dict]):
-    """
-    Додає список словників у таблицю. Додає заголовки, якщо потрібно.
-    """
-    if not data:
+def append_rows(ws, rows: list[dict]):
+    if not rows:
         return
 
-    existing_data = sheet.get_all_values()
-    headers = sheet.row_values(1) if existing_data else []
+    headers = ws.row_values(1)
+    values_to_append = []
 
-    # If no headers, write them
-    if not headers:
-        headers = list(data[0].keys())
-        sheet.append_row(headers)
-
-    # Ensure all rows have all columns in order
-    rows_to_append = []
-    for row in data:
+    for row in rows:
+        if not isinstance(row, dict):
+            print(f"⚠️ Skipped row (not dict): {row}")
+            continue
         full_row = [row.get(h, "") for h in headers]
-        rows_to_append.append(full_row)
+        values_to_append.append(full_row)
 
-    sheet.append_rows(rows_to_append, value_input_option="USER_ENTERED")
+    if values_to_append:
+        ws.append_rows(values_to_append, value_input_option="USER_ENTERED")
+
 
 
 def update_or_append_rows(sheet, data: List[Dict], key_column: str = "Website"):
