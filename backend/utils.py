@@ -6,32 +6,27 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def call_gpt(prompt: str, model: str = "gpt-4", max_tokens: int = 300, retries: int = 3, delay: float = 2.0) -> str:
-    """
-    Calls OpenAI GPT with retries and a default short system prompt.
-    """
-    import openai
-    openai.api_key = st.secrets["openai_api_key"]
-
-    for attempt in range(retries):
-        try:
-            response = openai.ChatCompletion.create(
-                model=model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are GPT that analyzes business websites. Answer concisely and in structured format."
-                    },
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=max_tokens,
-                temperature=0.3,
-            )
-            return response['choices'][0]['message']['content'].strip()
-        except Exception as e:
-            print(f"[GPT Error] Attempt {attempt+1}/{retries}: {e}")
-            time.sleep(delay)
-    return "GPT Error"
+def call_gpt(prompt: str, model: str = "gpt-4o", max_tokens: int = 300) -> str:
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are GPT that analyzes business websites. Answer concisely and in structured format."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=max_tokens,
+            temperature=0.3,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"[GPT Error] {e}")
+        return "GPT Error"
 
 
 def simplify_url(link: str) -> str:
