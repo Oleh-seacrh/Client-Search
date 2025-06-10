@@ -1,23 +1,13 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import requests
 import pandas as pd
 from urllib.parse import urlparse
-
-from backend.gsheet_service import get_gsheet_client
+from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name, read_existing_websites, append_rows
 from backend.prompts import prompt_is_company_website
-from backend.utils import get_page_text
-
-
-def simplify_url(link: str) -> str:
-    parsed = urlparse(link)
-    return f"{parsed.scheme}://{parsed.netloc}"
+from backend.utils import get_page_text, call_gpt, simplify_url
+import streamlit as st
 
 
 def get_google_search_params(query: str) -> dict:
-    import streamlit as st  # Локальний імпорт, щоб уникнути помилок при запуску не в Streamlit
     return {
         "key": st.secrets["GOOGLE_API_KEY"],
         "cx": st.secrets["CSE_ID"],
@@ -26,41 +16,35 @@ def get_google_search_params(query: str) -> dict:
     }
 
 
-
-def find_sites_for_companies(max_to_check: int, spreadsheet_id: str) -> list[str]:
-    import streamlit as st  # також тут
+def find_company_websites(limit: int, spreadsheet_id: str) -> list[str]:
+    """
+    Шукає сайти компаній з вкладки 'Client' (ті, у кого порожній 'Website'),
+    і додає підтверджені GPT-сайти назад у вкладку.
+    """
     gc = get_gsheet_client()
     sh = gc.open_by_key(spreadsheet_id)
 
-    # Отримуємо компанії
-    company_sheet = sh.worksheet("компанії")
-    data = company_sheet.get_all_values()
-    headers = data[0]
+    ws = get_worksheet_by_name(sh, "Client")
+    df = pd.DataFrame(ws.get_all_records())
 
-    # Додаємо колонку "Статус", якщо немає
-    if "Статус" not in headers:
-        company_sheet.update_cell(1, 2, "Статус")
-        headers.append("Статус")
+    # Компанії без сайту
+    df = df.fillna("")
+    candidates = df[df["Website"] == ""].copy()
+    if candidates.empty:
+        return ["✅ No companies without websites."]
 
-    # Підготуємо вкладку "результати"
-    try:
-        results_sheet = sh.worksheet("результати")
-    except:
-        results_sheet = sh.add_worksheet(title="результати", rows="1000", cols="5")
-        results_sheet.append_row(["Компанія", "Сайт", "Назва з Google", "Сторінка", "Дата"], value_input_option="USER_ENTERED")
+    existing_websites = set(df["Website"].str.lower())
+    processed = 0
+    logs = []
 
-    companies = data[1:]
-    to_process = []
-    for i, row in enumerate(companies, start=2):
-        name = row[0].strip()
-        status = row[1].strip() if len(row) > 1 else ""
-        if name and not status:
-            to_process.append((i, name))
-        if len(to_process) >= max_to_check:
+    for idx, row in candidates.iterrows():
+        if processed >= limit:
             break
 
-    log_output = []
-    for row_index, name in to_process:
+        name = row["Company"]
+        if not name:
+            continue
+
         try:
             params = get_google_search_params(name)
             resp = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
@@ -75,25 +59,27 @@ def find_sites_for_companies(max_to_check: int, spreadsheet_id: str) -> list[str
                 simplified = simplify_url(link)
                 page_text = get_page_text(simplified)
 
-                gpt_response = prompt_is_company_website(name, page_text, simplified)
+                gpt_prompt = prompt_is_company_website(name, page_text, simplified)
+                gpt_response = call_gpt(gpt_prompt)
 
-                debug_log.append(f"🔗 **{title}** — `{simplified}`\nGPT: _{gpt_response}_")
+                debug_log.append(f"🔗 **{title}** — {simplified}\nGPT: _{gpt_response}_")
 
-                if "так" in gpt_response.lower():
-                    today = pd.Timestamp.now().strftime("%Y-%m-%d")
-                    company_sheet.update_cell(row_index, 2, "Знайдено")
-                    results_sheet.append_row([name, simplified, title, "1", today], value_input_option="USER_ENTERED")
-                    log_output.append(f"✅ **{name}** → `{simplified}`")
+                if "yes" in gpt_response.lower():
+                    ws.update_cell(idx + 2, df.columns.get_loc("Website") + 1, simplified)
+                    ws.update_cell(idx + 2, df.columns.get_loc("Source") + 1, "website_search")
+                    ws.update_cell(idx + 2, df.columns.get_loc("Status") + 1, "Found")
+                    logs.append(f"✅ **{name}** → {simplified}")
                     found = True
                     break
 
             if not found:
-                company_sheet.update_cell(row_index, 2, "Не знайдено")
-                log_output.append(f"⚠️ **{name}** — сайт не підтверджено GPT")
-                for entry in debug_log:
-                    log_output.append(entry)
+                ws.update_cell(idx + 2, df.columns.get_loc("Status") + 1, "Not found")
+                logs.append(f"⚠️ **{name}** — no confirmed site")
+                logs.extend(debug_log)
 
         except Exception as e:
-            log_output.append(f"❌ Помилка при обробці {name}: {e}")
+            logs.append(f"❌ Error processing {name}: {e}")
 
-    return log_output
+        processed += 1
+
+    return logs
