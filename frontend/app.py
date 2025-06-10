@@ -6,91 +6,65 @@ import streamlit as st
 import pandas as pd
 from backend.search_logic import perform_search_and_analysis
 from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name
-from frontend.companies_tab import render_companies_tab
-from frontend.search_tab import render_search_tab
 from backend.company_loader import get_new_clients_from_tab
+from backend.gpt_analyzer import analyze_sites_from_client_tab
 
-
+# App config
 st.set_page_config(page_title="SAM – Search and Analysis Machine", layout="wide")
 st.title("🔍 Search and Analysis Machine")
 
 gsheet_id = st.secrets["spreadsheet_id"]
 
+# Tabs
+tab1, tab2, tab3 = st.tabs(["🔎 Search", "📇 CRM", "🧠 GPT Analysis"])
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🔎 Пошук", "📊 Результати", "🧠 GPT-Аналіз", "📇 CRM", "🏢 Компанії", "📇 Client"])
 
-
+# 🔎 TAB 1 — Search
 with tab1:
-    
-    st.subheader("Пошук сайтів за ключовим словом")
+    st.subheader("Search websites by keyword")
 
-    keyword = st.text_input("🔑 Введіть ключове слово:")
-    num_results = st.slider("Скільки результатів знайти:", min_value=10, max_value=100, step=10, value=20)
+    keyword = st.text_input("Enter search keyword:")
+    num_results = st.slider("Number of results:", min_value=10, max_value=100, step=10, value=20)
 
     col1, col2 = st.columns(2)
     with col1:
-        from_result = st.number_input("Починати з результату №", min_value=0, value=0, step=10)
+        from_result = st.number_input("Start from result #", min_value=0, value=0, step=10)
 
     with col2:
-        only_new = st.checkbox("Аналізувати лише нові сайти", value=True)
+        only_new = st.checkbox("Only analyze new websites", value=True)
 
-    if st.button("🔍 Почати пошук сайтів", key="start_site_search") and keyword:
-        with st.spinner("🔍 Виконується пошук і аналіз..."):
+    if st.button("Start Search", key="start_site_search") and keyword:
+        with st.spinner("Searching and analyzing..."):
             gc = get_gsheet_client()
             results = perform_search_and_analysis(keyword, gc, gsheet_id, only_new, num_results, from_result)
-            st.success(f"✅ Збережено {len(results)} нових записів.")
-    st.info("🔒 Пошук тимчасово відключено")
+            st.success(f"✅ Saved {len(results)} new entries.")
 
-
+# 📇 TAB 2 — CRM
 with tab2:
-    st.subheader("📊 Перегляд збережених результатів")
+    st.subheader("Client Database (tab: 'Client')")
 
     try:
         gc = get_gsheet_client()
         sheet = gc.open_by_key(gsheet_id)
-        ws = get_worksheet_by_name(sheet, "результати")
+        ws = get_worksheet_by_name(sheet, "Client")
         data = ws.get_all_records()
         df = pd.DataFrame(data)
 
-        show_only_yes = st.checkbox("Показати тільки перспективних (Клієнт: Так)", value=False)
-
-        if show_only_yes:
-            df = df[df["GPT: Клієнт"] == "Так"]
+        filter_yes = st.checkbox("Show only potential clients (Client: Yes)", value=False)
+        if filter_yes:
+            df = df[df["Client"].str.lower() == "yes"]
 
         st.dataframe(df)
 
     except Exception as e:
-        st.error(f"❌ Не вдалося завантажити дані: {e}")
+        st.error(f"❌ Failed to load data: {e}")
 
-
-
+# 🧠 TAB 3 — GPT Analysis
 with tab3:
-    st.subheader("🧠 GPT-Аналіз нових записів")
+    st.subheader("Run GPT analysis on new client records")
 
-    if st.button("🔍 Запустити аналіз (до 20 нових записів)", key="analyze_results_from_companies"):
-        st.warning("🔄 GPT аналіз запущено (поки що — симуляція)")
-
-
-with tab4:
-    render_search_tab()
-with tab5:
-    render_companies_tab()
-with tab6:
-    st.subheader("📇 Дані CRM (вкладка 'Client')")
-
-    with st.expander("🔁 Оновити CRM з Аналізу"):
-        if st.button("🚀 GPT: Знайти нових клієнтів з 'Аналізу'"):
-            with st.spinner("Перевіряємо..."):
-                new_clients = get_new_clients_from_tab("Аналіз")
-
-                if not new_clients:
-                    st.success("✅ Нових клієнтів не знайдено.")
-                else:
-                    df_new = pd.DataFrame(new_clients)
-                    st.write("🆕 Нові клієнти:")
-                    st.dataframe(df_new)
-
-                    if st.button("✅ Додати до CRM"):
-                        ws_client = get_gsheet_client().open_by_key(st.secrets["spreadsheet_id"]).worksheet("Client")
-                        ws_client.append_rows(df_new.values.tolist(), value_input_option="USER_ENTERED")
-                        st.success("🎉 Додано до CRM!")
+    if st.button("Analyze up to 20 new records", key="analyze_client_tab"):
+        with st.spinner("GPT analyzing..."):
+            logs = analyze_sites_from_client_tab(gsheet_id, limit=20)
+            for log in logs:
+                st.markdown(log)
