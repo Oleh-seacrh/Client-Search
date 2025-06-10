@@ -65,17 +65,19 @@ def prompt_get_country(description: str, url: str) -> str:
     Country: ... (Only name)
     If can not find out - asnwer just black space, nothing.
     """
-def prompt_get_company_name(description: str, url: str) -> str:
+def prompt_get_company_name(page_text: str, url: str) -> str:
     return f"""
-    Based on the following company description and website, determine the official company name:
+You are given raw website text from a company's homepage. Extract the official name of the company.
 
-    Description: {description}
-    Website: {url}
+Website: {url}
 
-    The name should:
-    - NOT include slogans, product names, or marketing phrases
-    - Be concise (e.g., “Medline Industries”, “XrayMedem”)
+Page text (cut): {page_text}
 
-    Respond in this format only:
-    Company Name: ...
-    """
+Rules:
+- Do not include slogans, marketing phrases, product names.
+- Focus on extracting the registered company name.
+- Ignore generic phrases like “Buy X-ray film” or “Welcome to our website”.
+
+Respond in this format only:
+Company Name: ...
+"""
