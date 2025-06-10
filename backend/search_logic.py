@@ -5,12 +5,55 @@ from backend.prompts import (
     prompt_get_country
 )
 from backend.utils import call_gpt, extract_email, simplify_url
-from backend.gsheet_service import get_worksheet_by_name, read_existing_urls, append_rows
+from backend.gsheet_service import get_worksheet_by_name, read_existing_websites, append_rows
 import streamlit as st
+import requests
+
+
+def google_search(keyword: str, limit: int = 20, offset: int = 0) -> list:
+    """
+    Виконує реальний Google Search через Programmable Search API.
+    """
+    api_key = st.secrets["GOOGLE_API_KEY"]
+    cse_id = st.secrets["CSE_ID"]
+
+    results = []
+    start = offset + 1  # Google API index starts at 1
+
+    while len(results) < limit:
+        num = min(10, limit - len(results))
+        params = {
+            "key": api_key,
+            "cx": cse_id,
+            "q": keyword,
+            "start": start,
+            "num": num,
+        }
+
+        response = requests.get("https://www.googleapis.com/customsearch/v1", params=params)
+        if response.status_code != 200:
+            raise Exception(f"Google Search error: {response.status_code} {response.text}")
+
+        data = response.json()
+        items = data.get("items", [])
+        for item in items:
+            results.append({
+                "title": item.get("title", ""),
+                "description": item.get("snippet", ""),
+                "link": item.get("link", "")
+            })
+
+        if "nextPage" in data.get("queries", {}):
+            start = data["queries"]["nextPage"][0]["startIndex"]
+        else:
+            break
+
+    return results[:limit]
+
 
 def analyze_site(result: dict) -> dict:
     """
-    Аналізує один результат (title, description, link) через GPT.
+    GPT-аналітика одного результату пошуку.
     """
     title = result.get("title", "")
     description = result.get("description", "")
@@ -18,7 +61,7 @@ def analyze_site(result: dict) -> dict:
     simplified_url = simplify_url(link)
 
     try:
-        gpt_client = call_gpt(prompt_is_potential_client(title, description, link))
+        gpt_client = call_gpt(prompt_is_potential_client(title, description, link, simplified_url))
         gpt_company = call_gpt(prompt_is_company_website(title, description, link))
         gpt_category = call_gpt(prompt_get_category(title, description, link))
         gpt_country = call_gpt(prompt_get_country(description, link))
@@ -28,41 +71,33 @@ def analyze_site(result: dict) -> dict:
     email = extract_email(description)
 
     return {
-        "Назва": title,
-        "Сайт": simplified_url,
+        "Company": title,
+        "Website": simplified_url,
         "Email": email,
-        "Категорія": gpt_category.replace("Категорія:", "").strip(),
-        "Країна": gpt_country.replace("Країна:", "").strip(),
-        "GPT: Клієнт": gpt_client.replace("Клієнт:", "").strip(),
-        "GPT: Сайт компанії": gpt_company.replace("Сайт компанії:", "").strip(),
-        "Опис": description,
-        "Джерело": link
+        "Category": gpt_category.replace("Category:", "").strip(),
+        "Country": gpt_country.replace("Country:", "").strip(),
+        "Client": gpt_client.replace("Client:", "").strip(),
+        "GPT": gpt_client.strip(),  # або gpt_company при бажанні
+        "Description": description,
+        "Source": "search"
     }
 
 
 def perform_search_and_analysis(keyword: str, gsheet_client, spreadsheet_id: str, only_new: bool = True, limit: int = 20, offset: int = 0):
     """
-    Симуляційна функція пошуку та GPT-аналізу результатів (поки без реального Google Search).
+    Виконує реальний Google Search та GPT аналіз результатів.
     """
-    # 🔁 Тут має бути реальний Google Search (поки фейкові дані)
-    search_results = [
-        {
-            "title": f"{keyword} Company {i}",
-            "description": f"Distributor of imaging products. Email: contact{i}@example.com",
-            "link": f"https://example{i}.com"
-        }
-        for i in range(offset, offset + limit)
-    ]
+    search_results = google_search(keyword, limit=limit, offset=offset)
 
     sheet = gsheet_client.open_by_key(spreadsheet_id)
-    ws = get_worksheet_by_name(sheet, "результати")
+    ws = get_worksheet_by_name(sheet, "Client")
 
-    existing_urls = read_existing_urls(ws) if only_new else []
+    existing_websites = read_existing_websites(ws) if only_new else []
     new_results = []
 
     for result in search_results:
         url = simplify_url(result.get("link", ""))
-        if only_new and url in existing_urls:
+        if only_new and url in existing_websites:
             continue
         enriched = analyze_site(result)
         new_results.append(enriched)
