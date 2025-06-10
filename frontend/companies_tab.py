@@ -2,42 +2,42 @@ import streamlit as st
 import pandas as pd
 from backend.gsheet_service import get_gsheet_client, get_worksheet_by_name
 
+
 def render_companies_tab():
     try:
         gc = get_gsheet_client()
         sheet = gc.open_by_key(st.secrets["spreadsheet_id"])
-        ws = get_worksheet_by_name(sheet, "результати")
+        ws = get_worksheet_by_name(sheet, "Client")
         data = ws.get_all_records()
         df = pd.DataFrame(data)
-        
-        df["Джерело"] = "Таблиця"
 
-        # Фільтруємо компанії, де GPT: Клієнт починається з "так"
-        df = df[df["GPT: Клієнт"].str.strip().str.lower().str.startswith("так")]
+        df["Source"] = df.get("Source", "table")
 
-        # Всі необхідні колонки (без "Сторінка")
-        required_columns = ["Назва компанії", "Сайт", "Email", "Країна", "Категорія", "Джерело"]
+        # Фільтрація компаній, які GPT позначив як Client: Yes
+        df = df[df["Client"].str.strip().str.lower() == "yes"]
 
+        # Обов’язкові колонки
+        required_columns = ["Company", "Website", "Email", "Country", "Category", "Source"]
 
-        # Додаємо порожні колонки, якщо їх не вистачає
+        # Додаємо порожні колонки, якщо відсутні
         for col in required_columns:
             if col not in df.columns:
                 df[col] = ""
 
-        # Переупорядковуємо колонки
+        # Упорядковуємо колонки
         df = df[required_columns]
 
-        # Видаляємо дублікати за сайтом (ігноруємо регістр і пробіли)
-        df["Сайт_normalized"] = df["Сайт"].str.strip().str.lower()
-        df = df.drop_duplicates(subset="Сайт_normalized", keep="first")
-        df = df.drop(columns=["Сайт_normalized"])
+        # Видаляємо дублікати за Website
+        df["Website_normalized"] = df["Website"].str.strip().str.lower()
+        df = df.drop_duplicates(subset="Website_normalized", keep="first")
+        df = df.drop(columns=["Website_normalized"])
 
-        st.markdown("### 🏢 Перспективні компанії (GPT: Клієнт = Так)")
+        st.markdown("### 🏢 Potential Clients (Client = Yes)")
 
         if df.empty:
-            st.info("📭 Немає компаній, позначених GPT як 'Клієнт: Так'. Але структура таблиці збережена.")
+            st.info("📭 No companies marked as 'Client: Yes'. Table structure is preserved.")
         else:
             st.dataframe(df.reset_index(drop=True), use_container_width=True)
 
     except Exception as e:
-        st.error(f"❌ Не вдалося завантажити дані з вкладки 'результати': {e}")
+        st.error(f"❌ Failed to load data from 'Client' tab: {e}")
