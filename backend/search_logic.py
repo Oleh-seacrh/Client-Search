@@ -118,7 +118,7 @@ def perform_search_and_analysis(
             continue
 
         enriched = analyze_site(result)
-        if enriched:  # enriched is None if GPT said 'not a client'
+        if isinstance(enriched, dict):
             new_results.append(enriched)
 
     if new_results:
