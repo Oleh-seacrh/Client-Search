@@ -66,8 +66,8 @@ def get_new_clients_from_tab(tab_name: str):
 
     # Джерело по табу
     source_map = {
-        "Аналіз": "Search",
-        "результати": "TradeAtlas",
+        "Search": "Search",
+        "TradeAtlas": "TradeAtlas",
         "Email": "Email"
     }
     source = source_map.get(tab_name, "Unknown")
