@@ -11,13 +11,13 @@ def load_companies_from_tab(source_tab: str, spreadsheet_id: str):
     ws = sh.worksheet(source_tab)
     data = ws.col_values(1)[1:]  # Пропускаємо заголовок
 
-    # Готуємо або створюємо вкладку "компанії"
+    # Працюємо тепер тільки з вкладкою "Client"
     try:
-        company_sheet = sh.worksheet("компанії")
-        existing = set(name.strip().upper() for name in company_sheet.col_values(1)[1:])
+        ws_client = sh.worksheet("Client")
+        existing = set(name.strip().upper() for name in ws_client.col_values(1)[1:])  # Перевірка по Company
     except:
-        company_sheet = sh.add_worksheet(title="компанії", rows="1000", cols="1")
-        company_sheet.update("A1", [["Компанії"]])
+        ws_client = sh.add_worksheet(title="Client", rows="1000", cols="20")
+        ws_client.update("A1", [["Company"]])
         existing = set()
 
     log_output = []
@@ -34,39 +34,36 @@ def load_companies_from_tab(source_tab: str, spreadsheet_id: str):
             if name.startswith(prefix):
                 name = name[len(prefix):].strip()
 
-        # Прибираємо лапки та зайві пробіли
         name = name.replace("«", "").replace("»", "").replace("\"", "")
         name = ' '.join(name.split())
+        cleaned = name.upper()
 
-        if len(name) > 2:
-            cleaned = name.upper()
-            if cleaned in existing or cleaned in [x[0] for x in new_entries]:
-                log_output.append(f"🔁 Пропущено повтор: {original}")
-            else:
-                new_entries.append([cleaned])
-                log_output.append(f"➕ Додано: {cleaned}")
+        if len(cleaned) > 2 and cleaned not in existing and cleaned not in [x[0] for x in new_entries]:
+            new_entries.append([cleaned])
+            log_output.append(f"➕ Added: {cleaned}")
+        else:
+            log_output.append(f"🔁 Skipped duplicate: {original}")
 
-    # Додаємо у таблицю
+    # Додаємо нові записи
     if new_entries:
-        next_row = len(existing) + 2  # 1-based, з урахуванням заголовка
-        company_sheet.update(f"A{next_row}:A{next_row + len(new_entries) - 1}", new_entries)
+        next_row = len(existing) + 2
+        ws_client.update(f"A{next_row}:A{next_row + len(new_entries) - 1}", new_entries)
 
     return log_output, len(new_entries)
-    
-def get_new_clients_from_tab(tab_name: str):
 
+
+def get_new_clients_from_tab(tab_name: str):
     gc = get_gsheet_client()
     sh = gc.open_by_key(st.secrets["spreadsheet_id"])
 
-    # Мапа джерел
+    # Джерело
     source_map = {
-        "Аналіз": "Search",
-        "результати": "TradeAtlas",
-        "Email": "Email"
+        "Аналіз": "search",
+        "результати": "tradeatlas",
+        "Email": "email"
     }
-    source = source_map.get(tab_name, "Unknown")
+    source = source_map.get(tab_name, tab_name.lower())
 
-    # Отримуємо дані з вкладки Client
     try:
         ws_client = sh.worksheet("Client")
         client_data = ws_client.get_all_records()
@@ -74,18 +71,9 @@ def get_new_clients_from_tab(tab_name: str):
     except:
         client_df = pd.DataFrame()
 
-    # Безпечна перевірка наявності колонок
-    if "Сайт" in client_df.columns:
-        existing_websites = set(client_df["Сайт"].str.lower().fillna(""))
-    else:
-        existing_websites = set()
+    existing_websites = set(client_df.get("Website", pd.Series(dtype=str)).str.lower().fillna(""))
+    existing_emails = set(client_df.get("Email", pd.Series(dtype=str)).str.lower().fillna(""))
 
-    if "Email" in client_df.columns:
-        existing_emails = set(client_df["Email"].str.lower().fillna(""))
-    else:
-        existing_emails = set()
-
-    # Отримуємо дані з вкладки-джерела
     try:
         ws_source = sh.worksheet(tab_name)
         source_data = ws_source.get_all_records()
@@ -99,7 +87,6 @@ def get_new_clients_from_tab(tab_name: str):
         website = str(row.get("Website") or row.get("Сайт") or "").strip().lower()
         email = str(row.get("Email") or row.get("Пошта") or "").strip().lower()
 
-        # Пропускаємо, якщо такий вже існує
         if website in existing_websites or email in existing_emails:
             continue
 
@@ -108,13 +95,16 @@ def get_new_clients_from_tab(tab_name: str):
             "Website": website,
             "Email": email,
             "Contact person": row.get("Contact person") or "",
+            "Phone": row.get("Phone") or "",
             "Brand": row.get("Brand") or "",
             "Product": row.get("Product") or row.get("Продукт") or "",
             "Quantity": row.get("Quantity") or row.get("Кількість") or "",
             "Country": row.get("Country") or row.get("Країна") or "",
             "Source": source,
-            "Status": "Новий",
-            "Deal value": ""
+            "Status": "New",
+            "Deal value": "",
+            "GPT": "",
+            "Client": ""
         })
 
     return new_clients
