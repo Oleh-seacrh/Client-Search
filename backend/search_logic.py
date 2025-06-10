@@ -51,7 +51,7 @@ def google_search(keyword: str, limit: int = 20, offset: int = 0) -> list:
     return results[:limit]
 
 
-def analyze_site(result: dict) -> dict:
+def analyze_site(result: dict) -> dict | None:
     """
     GPT-аналітика одного результату пошуку.
     """
@@ -60,24 +60,30 @@ def analyze_site(result: dict) -> dict:
     link = result.get("link", "")
     simplified_url = simplify_url(link)
 
+    # Завантажуємо текст із сайту
+    page_text = get_page_text(simplified_url)
+
     try:
-        gpt_client = call_gpt(prompt_is_potential_client(title, description, link, simplified_url))
-        gpt_company = call_gpt(prompt_is_company_website(title, description, link))
+        gpt_verdict = call_gpt(prompt_is_potential_client(title, description, link, simplified_url))
+        gpt_company_name = call_gpt(prompt_get_company_name(page_text, simplified_url))
         gpt_category = call_gpt(prompt_get_category(title, description, link))
         gpt_country = call_gpt(prompt_get_country(description, link))
     except Exception:
-        gpt_client = gpt_company = gpt_category = gpt_country = "GPT Error"
+        return None
 
-    email = extract_email(description)
+    if "client: no" in gpt_verdict.lower():
+        return None
+    if "manufacturer" in gpt_verdict.lower() or "producer" in gpt_verdict.lower():
+        return None
 
     return {
-        "Company": title,
+        "Company": gpt_company_name.replace("Company Name:", "").strip() or title,
         "Website": simplified_url,
-        "Email": email,
+        "Email": extract_email(description),
         "Category": gpt_category.replace("Category:", "").strip(),
         "Country": gpt_country.replace("Country:", "").strip(),
-        "Client": gpt_client.replace("Client:", "").strip(),
-        "GPT": gpt_client.strip(),  # або gpt_company при бажанні
+        "Client": "Yes",
+        "GPT": gpt_verdict.strip(),
         "Description": description,
         "Source": "search"
     }
