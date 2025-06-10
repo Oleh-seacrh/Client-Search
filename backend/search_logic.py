@@ -89,9 +89,17 @@ def analyze_site(result: dict) -> dict | None:
     }
 
 
-def perform_search_and_analysis(keyword: str, gsheet_client, spreadsheet_id: str, only_new: bool = True, limit: int = 20, offset: int = 0):
+def perform_search_and_analysis(
+    keyword: str,
+    gsheet_client,
+    spreadsheet_id: str,
+    only_new: bool = True,
+    limit: int = 20,
+    offset: int = 0
+):
     """
     Виконує реальний Google Search та GPT аналіз результатів.
+    Додає тільки підтверджених GPT клієнтів у вкладку 'Client'.
     """
     search_results = google_search(keyword, limit=limit, offset=offset)
 
@@ -102,11 +110,18 @@ def perform_search_and_analysis(keyword: str, gsheet_client, spreadsheet_id: str
     new_results = []
 
     for result in search_results:
+        if result is None or not isinstance(result, dict):
+            continue
+
         url = simplify_url(result.get("link", ""))
         if only_new and url in existing_websites:
             continue
-        enriched = analyze_site(result)
-        new_results.append(enriched)
 
-    append_rows(ws, new_results)
+        enriched = analyze_site(result)
+        if enriched:  # enriched is None if GPT said 'not a client'
+            new_results.append(enriched)
+
+    if new_results:
+        append_rows(ws, new_results)
+
     return new_results
