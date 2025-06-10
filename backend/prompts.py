@@ -1,13 +1,20 @@
-def prompt_is_potential_client(title: str, description: str, url: str, website: str = None) -> str:
+def prompt_is_potential_client(title, description, url, website=None):
     return f"""
-    Company Name: {title}
+    Company Name (title): {title}
     Description: {description}
     Search Result URL: {url}
-    Website: {website or "Not specified"}
+    Website: {website or "Not provided"}
 
-    Is this company a potential client for a business that sells medical or NDT X-ray films?
+    Task:
+    Determine whether this company is a potential client for a business that sells medical or NDT X-ray films.
+    We are a medical equipment company Medem. Our website is www.xraymedem.com
+    Every other medical dealer, distributor - even if in another medical field - is our potential partner.
+    Important:
+    - If this is a manufacturer, producer, or official brand like Fujifilm, Agfa, Carestream, etc — answer No.
+    - If it’s a distributor, clinic, dealer, importer, medical center — answer Yes.
+    - If it's some legal, IT , logistics company - not our client
 
-    Respond only in this format:
+    Respond ONLY:
     Client: Yes or Client: No
     """
 
@@ -55,7 +62,8 @@ def prompt_get_country(description: str, url: str) -> str:
     In which country is this company most likely located?
 
     Response format:
-    Country: ...
+    Country: ... (Only name)
+    If can not find out - asnwer just black space, nothing.
     """
 def prompt_get_company_name(description: str, url: str) -> str:
     return f"""
