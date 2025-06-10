@@ -1,103 +1,59 @@
-def prompt_is_potential_client(title, description, url, website=None):
+def prompt_is_potential_client(title: str, description: str, url: str, website: str = None) -> str:
     return f"""
-    Назва: {title}
-    Опис: {description}
-    URL результату: {url}
-    Вебсайт компанії: {website or "Не вказано"}
+    Company Name: {title}
+    Description: {description}
+    Search Result URL: {url}
+    Website: {website or "Not specified"}
 
-    Чи виглядає ця компанія як потенційний клієнт для компанії, яка продає медичні або NDT рентген-плівки?
+    Is this company a potential client for a business that sells medical or NDT X-ray films?
 
-    Відповідь тільки: Клієнт: Так або Клієнт: Ні
+    Respond only in this format:
+    Client: Yes or Client: No
     """
 
-def prompt_is_company_website(title, description, url):
+
+def prompt_is_company_website(title: str, description: str, url: str) -> str:
     return f"""
-    Назва компанії: {title}
-    Опис сторінки: {description}
+    Company Name: {title}
+    Page Description: {description}
     URL: {url}
 
-    Завдання:
-    Визнач, чи цей сайт є офіційним сайтом компанії. Ігноруй маркетплейси, каталоги, Вікіпедію, агрегатори, посередників, форуми чи сайти-партнери.
+    Task:
+    Determine whether this is the official website of the company. Ignore marketplaces, directories, Wikipedia, aggregators, partners, or forums.
 
-    Бери до уваги тільки:
-    - Згадку назви компанії на сайті
-    - Логотип або контакти компанії
-    - Відповідність назви компанії домену (наприклад, carestream → carestream.com)
+    Consider only:
+    - The company name being explicitly mentioned on the page
+    - Company logo or direct contact details
+    - Domain matching the company name (e.g., carestream → carestream.com)
 
-    Якщо таких ознак немає — вважай, що це не сайт компанії.
+    If none of these are found, assume it's not the official website.
 
-    Відповідь строго у форматі:
-    Сайт компанії: Так або Сайт компанії: Ні
+    Respond only in this format:
+    Company Website: Yes or Company Website: No
     """
 
-def prompt_get_category(title, description, url):
+
+def prompt_get_category(title: str, description: str, url: str) -> str:
     return f"""
-    Назва: {title}
-    Опис: {description}
-    URL результату: {url}
-
-    Який тип компанії? Обери одну з категорій: Medical / NDT / Other
-
-    Відповідь: Категорія: ...
-    """
-
-def prompt_get_country(description, url):
-    return f"""
-    Опис компанії або фрагмент: {description}
+    Company Name: {title}
+    Description: {description}
     URL: {url}
 
-    В якій країні, найімовірніше, розташована ця компанія?
+    What type of company is this? Choose one of the following categories:
+    Medical / NDT / Other
 
-    Відповідь: Країна: ...
+    Response format:
+    Category: ...
     """
-def get_new_clients_from_tab(tab_name: str):
-    import openai
-    import pandas as pd
 
-    gc = get_gsheet_client()
-    sh = gc.open_by_key(st.secrets["spreadsheet_id"])
 
-    # Завантажуємо існуючі клієнти
-    ws_client = sh.worksheet("Client")
-    client_data = ws_client.get_all_records()
-    client_df = pd.DataFrame(client_data)
-    existing_emails = set(client_df["Email"].str.lower().fillna(""))
-    existing_websites = set(client_df["Website"].str.lower().fillna(""))
+def prompt_get_country(description: str, url: str) -> str:
+    return f"""
+    Description or snippet about the company: {description}
+    URL: {url}
 
-    # Джерело по табу
-    source_map = {
-        "Search": "Search",
-        "TradeAtlas": "TradeAtlas",
-        "Email": "Email"
-    }
-    source = source_map.get(tab_name, "Unknown")
+    In which country is this company most likely located?
 
-    # Завантажуємо нові дані
-    ws_source = sh.worksheet(tab_name)
-    source_data = ws_source.get_all_records()
-    new_df = pd.DataFrame(source_data)
-
-    # Формуємо JSON для GPT
-    companies = []
-    for row in new_df.to_dict("records"):
-        website = str(row.get("Сайт") or row.get("Website") or "").strip().lower()
-        email = str(row.get("Email") or row.get("Пошта") or "").strip().lower()
-
-        if website in existing_websites or email in existing_emails:
-            continue  # вже є
-
-        companies.append({
-            "Company": row.get("Назва компанії") or row.get("Company") or "",
-            "Website": website,
-            "Email": email,
-            "Contact person": row.get("Contact person") or "",
-            "Brand": row.get("Brand") or "",
-            "Product": row.get("Product") or row.get("Продукт") or "",
-            "Quantity": row.get("Quantity") or row.get("Кількість") or "",
-            "Country": row.get("Country") or row.get("Країна") or "",
-            "Source": source,
-            "Status": "Новий",
-            "Deal value": ""
-        })
-
-    return companies
+    Response format:
+    Country: ...
+    """
