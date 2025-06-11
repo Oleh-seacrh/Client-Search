@@ -6,7 +6,7 @@ from backend.prompts import (
     prompt_get_company_name
 )
 from backend.utils import call_gpt, extract_email, simplify_url, get_page_text
-from backend.gsheet_service import get_worksheet_by_name, read_existing_websites, append_rows
+from backend.gsheet_service import get_worksheet_by_name, read_existing_websites, append_rows, is_duplicate_entry
 import streamlit as st
 import requests
 
@@ -100,14 +100,13 @@ def perform_search_and_analysis(
 ):
     """
     Виконує Google Search, GPT аналіз, і зберігає лише підтверджених клієнтів у вкладку 'Client'.
-    Додає логування кожного кроку.
+    Перевіряє дублі за Website та Email.
     """
     search_results = google_search(keyword, limit=limit, offset=offset)
 
     sheet = gsheet_client.open_by_key(spreadsheet_id)
     ws = get_worksheet_by_name(sheet, "Client")
 
-    existing_websites = read_existing_websites(ws) if only_new else []
     new_results = []
     log_messages = []
 
@@ -116,17 +115,18 @@ def perform_search_and_analysis(
             log_messages.append("⛔️ Пропущено: некоректний результат (None або не dict)")
             continue
 
-        url = simplify_url(result.get("link", ""))
-        if only_new and url in existing_websites:
-            log_messages.append(f"🔁 Вже існує: {url}")
+        enriched = analyze_site(result)
+        if not isinstance(enriched, dict):
+            log_messages.append(f"❌ Відхилено: {result.get('link')} — не є потенційним клієнтом")
             continue
 
-        enriched = analyze_site(result)
-        if isinstance(enriched, dict):
-            new_results.append(enriched)
-            log_messages.append(f"✅ Додано: {enriched.get('Website')} | {enriched.get('Company')} | {enriched.get('Client')}")
-        else:
-            log_messages.append(f"❌ Відхилено: {url} — не є потенційним клієнтом")
+        # ✅ Нова перевірка дублів
+        if is_duplicate_entry(ws, enriched):
+            log_messages.append(f"⚠️ Пропущено (дубль): {enriched.get('Website')}")
+            continue
+
+        new_results.append(enriched)
+        log_messages.append(f"✅ Додано: {enriched.get('Website')} | {enriched.get('Company')} | {enriched.get('Client')}")
 
     if new_results:
         append_rows(ws, new_results)
