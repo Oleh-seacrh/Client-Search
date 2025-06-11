@@ -98,8 +98,8 @@ def perform_search_and_analysis(
     offset: int = 0
 ):
     """
-    Виконує реальний Google Search та GPT аналіз результатів.
-    Додає тільки підтверджених GPT клієнтів у вкладку 'Client'.
+    Виконує Google Search, GPT аналіз, і зберігає лише підтверджених клієнтів у вкладку 'Client'.
+    Додає логування кожного кроку.
     """
     search_results = google_search(keyword, limit=limit, offset=offset)
 
@@ -108,20 +108,30 @@ def perform_search_and_analysis(
 
     existing_websites = read_existing_websites(ws) if only_new else []
     new_results = []
+    log_messages = []
 
     for result in search_results:
         if result is None or not isinstance(result, dict):
+            log_messages.append("⛔️ Пропущено: некоректний результат (None або не dict)")
             continue
 
         url = simplify_url(result.get("link", ""))
         if only_new and url in existing_websites:
+            log_messages.append(f"🔁 Вже існує: {url}")
             continue
 
         enriched = analyze_site(result)
         if isinstance(enriched, dict):
             new_results.append(enriched)
+            log_messages.append(f"✅ Додано: {enriched.get('Website')} | {enriched.get('Company')} | {enriched.get('Client')}")
+        else:
+            log_messages.append(f"❌ Відхилено: {url} — не є потенційним клієнтом")
 
     if new_results:
         append_rows(ws, new_results)
+
+    st.markdown("### 🧾 Лог обробки:")
+    for line in log_messages:
+        st.markdown(line)
 
     return new_results
