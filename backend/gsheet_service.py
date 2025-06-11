@@ -85,3 +85,23 @@ def update_or_append_rows(sheet, data: List[Dict], key_column: str = "Website"):
         append_rows(sheet, new_data)
 
     print(f"Updated: {updates}, Added new: {len(new_data)}")
+    
+def is_duplicate_entry(ws, new_entry: dict) -> bool:
+    """
+    Перевіряє дублі за Website або Email (нечутливо до регістру).
+    """
+    existing = ws.get_all_records()
+
+    new_url = str(new_entry.get("Website", "")).lower().strip()
+    new_email = str(new_entry.get("Email", "")).lower().strip()
+
+    for row in existing:
+        existing_url = str(row.get("Website", "")).lower().strip()
+        existing_email = str(row.get("Email", "")).lower().strip()
+
+        if new_url and new_url == existing_url:
+            return True
+        if new_email and new_email == existing_email:
+            return True
+
+    return False
