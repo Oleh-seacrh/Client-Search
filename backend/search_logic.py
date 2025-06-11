@@ -100,7 +100,7 @@ def perform_search_and_analysis(
 ):
     """
     Виконує Google Search, GPT аналіз, і зберігає лише підтверджених клієнтів у вкладку 'Client'.
-    Перевіряє дублі за Website та Email.
+    Перевіряє дублі як у таблиці, так і серед нових записів у поточному сеансі.
     """
     search_results = google_search(keyword, limit=limit, offset=offset)
 
@@ -120,14 +120,28 @@ def perform_search_and_analysis(
             log_messages.append(f"❌ Відхилено: {result.get('link')} — не є потенційним клієнтом")
             continue
 
-        # ✅ Нова перевірка дублів
+        # Спрощення для порівняння
+        url_clean = simplify_url(enriched.get("Website", ""))
+        email_clean = enriched.get("Email", "").lower().strip()
+
+        # 🔁 Перевірка дубля по таблиці
         if is_duplicate_entry(ws, enriched):
-            log_messages.append(f"⚠️ Пропущено (дубль): {enriched.get('Website')}")
+            log_messages.append(f"⚠️ Пропущено (дубль у таблиці): {url_clean}")
             continue
 
-        new_results.append(enriched)
-        log_messages.append(f"✅ Додано: {enriched.get('Website')} | {enriched.get('Company')} | {enriched.get('Client')}")
+        # 🔁 Перевірка дубля серед уже зібраних результатів у цьому сеансі
+        already_added_urls = {simplify_url(r["Website"]) for r in new_results}
+        already_added_emails = {r["Email"].lower() for r in new_results if r.get("Email")}
 
+        if url_clean in already_added_urls or (email_clean and email_clean in already_added_emails):
+            log_messages.append(f"⚠️ Пропущено (дубль у нових): {url_clean}")
+            continue
+
+        # ✅ Додаємо
+        new_results.append(enriched)
+        log_messages.append(f"✅ Додано: {url_clean} | {enriched.get('Company')} | {enriched.get('Client')}")
+
+    # 📝 Запис у таблицю
     if new_results:
         append_rows(ws, new_results)
 
