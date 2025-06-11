@@ -2,7 +2,8 @@ from backend.prompts import (
     prompt_is_potential_client,
     prompt_is_company_website,
     prompt_get_category,
-    prompt_get_country
+    prompt_get_country,
+    prompt_get_company_name
 )
 from backend.utils import call_gpt, extract_email, simplify_url, get_page_text
 from backend.gsheet_service import get_worksheet_by_name, read_existing_websites, append_rows
