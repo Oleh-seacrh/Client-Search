@@ -7,12 +7,10 @@ def prompt_is_potential_client(title, description, url, website=None):
 
     Task:
     Determine whether this company is a potential client for a business that sells medical or NDT X-ray films.
-    We are a medical equipment company Medem. Our website is www.xraymedem.com
     Every other medical dealer, distributor - even if in another medical field - is our potential partner.
     Important:
-    - If this is a manufacturer, producer, or official brand like Fujifilm, Agfa, Carestream, etc — answer No.
+    - If this is a OEM manufacturer or official brand like Fujifilm, Agfa, Carestream, etc — answer No.
     - If it’s a distributor, clinic, dealer, importer, medical center — answer Yes.
-    - If it's some legal, IT , logistics company - not our client
 
     Respond ONLY:
     Client: Yes or Client: No
