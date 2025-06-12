@@ -110,6 +110,9 @@ def perform_search_and_analysis(
     new_results = []
     log_messages = []
 
+    already_added_urls = set()
+    already_added_emails = set()
+
     for result in search_results:
         if result is None or not isinstance(result, dict):
             log_messages.append("⛔️ Пропущено: некоректний результат (None або не dict)")
@@ -130,16 +133,21 @@ def perform_search_and_analysis(
             continue
 
         # 🔁 Перевірка дубля серед уже зібраних результатів у цьому сеансі
-        already_added_urls = {simplify_url(r["Website"]) for r in new_results}
-        already_added_emails = {r["Email"].lower() for r in new_results if r.get("Email")}
-
         if url_clean in already_added_urls or (email_clean and email_clean in already_added_emails):
             log_messages.append(f"⚠️ Пропущено (дубль у нових): {url_clean}")
             continue
 
         # ✅ Додаємо
         new_results.append(enriched)
+        already_added_urls.add(url_clean)
+        if email_clean:
+            already_added_emails.add(email_clean)
+
         log_messages.append(f"✅ Додано: {url_clean} | {enriched.get('Company')} | {enriched.get('Client')}")
+
+    # 📝 Запис у таблицю
+    if new_results:
+        append_rows(ws, new_results)
 
     # 📝 Запис у таблицю
     if new_results:
