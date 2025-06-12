@@ -149,10 +149,6 @@ def perform_search_and_analysis(
     if new_results:
         append_rows(ws, new_results)
 
-    # 📝 Запис у таблицю
-    if new_results:
-        append_rows(ws, new_results)
-
     st.markdown("### 🧾 Лог обробки:")
     for line in log_messages:
         st.markdown(line)
